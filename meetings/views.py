@@ -1,7 +1,8 @@
 import os
 
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
+import cloudinary
+import cloudinary.uploader
 
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -9,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
 
-from .ai_service import generate_meeting_summary
+from .ai_service import generate_meeting_summary, transcribe_meeting_audio
 
 from .db_operations import (
     create_meeting,
@@ -263,17 +264,33 @@ def upload_meeting(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    upload_dir = os.path.join(settings.MEDIA_ROOT, "meeting_uploads")
-    os.makedirs(upload_dir, exist_ok=True)
 
-    storage = FileSystemStorage(location=upload_dir)
-    saved_name = storage.save(uploaded_file.name, uploaded_file)
+    cloudinary.config(
+        cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+        api_key=settings.CLOUDINARY_API_KEY,
+        api_secret=settings.CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+
+    try:
+        upload_result = cloudinary.uploader.upload(
+            uploaded_file,
+            resource_type="video",
+            folder="ai_meeting_intelligence/meetings",
+        )
+    except Exception as e:
+        print("Cloudinary upload error:", repr(e))
+        return Response(
+            {"error": "Cloudinary upload failed. Check the server terminal."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
 
     meeting_data = {
         "title": title,
         "description": "",
         "file_name": uploaded_file.name,
-        "file_url": f"{settings.MEDIA_URL}meeting_uploads/{saved_name}",
+        "file_url": upload_result["secure_url"],
         "file_type": extension.lstrip("."),
         "file_size": uploaded_file.size,
         "status": "processing",
@@ -288,6 +305,49 @@ def upload_meeting(request):
         },
         status=status.HTTP_201_CREATED,
     )
+    
+@api_view(["POST"])
+def transcribe_meeting(request, meeting_id):
+    meeting = get_meeting_by_id(meeting_id)
+
+    if not meeting:
+        return Response(
+            {"error": "Meeting not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    file_url = meeting.get("file_url", "")
+
+    if not file_url:
+        return Response(
+            {"error": "This meeting has no uploaded audio file."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        transcript = transcribe_meeting_audio(file_url)
+        saved_meeting = save_transcript(meeting_id, transcript)
+
+        if not saved_meeting:
+            return Response(
+                {"error": "Could not save the transcript."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response({
+            "message": "Audio transcribed successfully.",
+            "meeting_id": meeting_id,
+            "title": saved_meeting.get("title", ""),
+            "transcript": transcript
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("AUDIO TRANSCRIPTION ERROR:", repr(e))
+        return Response(
+            {"error": "Audio transcription failed. Check the server terminal for details."},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+
 
 
 

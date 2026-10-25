@@ -62,3 +62,21 @@ Rules:
     )
 
     return response.choices[0].message.content
+
+def transcribe_meeting_audio(file_url):
+    if not file_url or not file_url.strip():
+        raise ValueError("Audio file URL is empty.")
+
+    response = client.audio.transcriptions.create(
+        url=file_url,
+        model="whisper-large-v3-turbo",
+        response_format="json",
+        temperature=0.0,
+    )
+
+    transcript = response.text.strip()
+
+    if not transcript:
+        raise ValueError("No speech was detected in the audio.")
+
+    return transcript

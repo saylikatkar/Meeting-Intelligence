@@ -12,6 +12,11 @@ urlpatterns = [
         name="meeting-transcript",
     ),
     path(
+        "<str:meeting_id>/transcribe/",
+        views.transcribe_meeting,
+        name="transcribe-meeting",
+    ),
+    path(
         "<str:meeting_id>/summarize/",
         views.summarize_meeting,
         name="summarize-meeting",
