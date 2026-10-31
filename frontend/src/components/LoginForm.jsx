@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth, roleAccounts } from "../context/AuthContext";
@@ -24,7 +25,7 @@ const roles = {
 
 function LoginForm({ initialRole = "member" }) {
   const { login, updateProfile } = useAuth();
-  const { users, staffProfiles, addLog } = useData();
+  const { staffProfiles, addLog } = useData();
   const navigate = useNavigate();
 
   const [role, setRole] = useState(initialRole);
@@ -41,60 +42,74 @@ function LoginForm({ initialRole = "member" }) {
     setError("");
   }
 
-  // registered members are checked against the local store until the API is ready
-  function findMember() {
-    return users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-  }
-
-  function checkMember() {
-    const typed = email.trim().toLowerCase();
-    if (Object.values(roleAccounts).some((a) => (a.email || "").toLowerCase() === typed)) {
-      return "This email belongs to the admin account. Choose Admin above.";
-    }
-    const account = findMember();
-    // same message for unknown email and wrong password, so emails can't be guessed
-    if (!account || account.password !== password) return "Invalid email or password.";
-    if (account.status === "disabled") return "This account has been disabled. Contact your admin.";
-    return "";
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!email || !password) {
+    console.log("LOGIN FORM SUBMITTED");
+
+    if (!email.trim() || !password) {
       setError("Please enter your email and password.");
       return;
     }
-    if (role === "admin" && !secretKey) {
+
+    if (role === "admin" && !secretKey.trim()) {
       setError("Please enter the admin secret key.");
       return;
     }
 
-    if (role === "member") {
-      const memberError = checkMember();
-      if (memberError) {
-        addLog("auth", `Failed member sign-in attempt for ${email.trim()}`, "warning", "system");
-        setError(memberError);
-        return;
-      }
-    }
-
     setLoading(true);
+
     try {
-      const member = role === "member" ? findMember() : undefined;
-      const user = await login(email, password, role, member, secretKey);
+      console.log("CALLING AUTH LOGIN", {
+        email: email.trim(),
+        role,
+        usingMock: !import.meta.env.VITE_API_URL,
+      });
+
+      // Authenticate through AuthContext and the Django API.
+      const user = await login(
+        email.trim(),
+        password,
+        role,
+        undefined,
+        secretKey
+      );
+
       if (role !== "member") {
         const savedName = staffProfiles[role]?.name;
-        if (savedName) updateProfile({ name: savedName });
-        addLog("auth", `${role} signed in`, "info", `${savedName || user.name} (${role})`);
+
+        if (savedName) {
+          updateProfile({ name: savedName });
+        }
+
+        addLog(
+          "auth",
+          `${role} signed in`,
+          "info",
+          `${savedName || user.name} (${role})`
+        );
       }
+
       navigate(dashboardPaths[role]);
     } catch (err) {
+      console.error("LOGIN ERROR:", err);
+
       if (role !== "member") {
-        addLog("auth", `Failed ${role} sign-in attempt for ${email}`, "warning", "system");
+        addLog(
+          "auth",
+          `Failed ${role} sign-in attempt for ${email.trim()}`,
+          "warning",
+          "system"
+        );
       }
-      setError(err.response?.data?.detail || err.message || "Login failed. Try again.");
+
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          err.message ||
+          "Login failed. Try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -107,14 +122,22 @@ function LoginForm({ initialRole = "member" }) {
       <Logo className="mb-8" />
 
       <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg p-6">
-        <h1 className="text-xl font-semibold text-gray-900">{heading}</h1>
+        <h1 className="text-xl font-semibold text-gray-900">
+          {heading}
+        </h1>
+
         <p className="text-sm text-gray-500 mt-1">{note}</p>
 
         <div className="mt-5">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-sm font-medium text-gray-700">Sign in as</span>
-            <span className="text-xs text-gray-500">Role-based workspace</span>
+            <span className="text-sm font-medium text-gray-700">
+              Sign in as
+            </span>
+            <span className="text-xs text-gray-500">
+              Role-based workspace
+            </span>
           </div>
+
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(roles).map(([key, r]) => (
               <button
@@ -142,9 +165,13 @@ function LoginForm({ initialRole = "member" }) {
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Email
             </label>
+
             <input
               id="email"
               type="email"
@@ -153,18 +180,27 @@ function LoginForm({ initialRole = "member" }) {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-600"
               autoComplete="email"
+              required
             />
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
-              <Link to="/forgot-password" className="text-xs text-blue-700 hover:underline">
+
+              <Link
+                to="/forgot-password"
+                className="text-xs text-blue-700 hover:underline"
+              >
                 Forgot password?
               </Link>
             </div>
+
             <div className="relative">
               <input
                 id="password"
@@ -174,7 +210,9 @@ function LoginForm({ initialRole = "member" }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2 pr-14 text-sm focus:outline-none focus:border-blue-600"
                 autoComplete="current-password"
+                required
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -187,9 +225,13 @@ function LoginForm({ initialRole = "member" }) {
 
           {role === "admin" && (
             <div>
-              <label htmlFor="secret-key" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="secret-key"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Secret key
               </label>
+
               <input
                 id="secret-key"
                 type="password"
@@ -198,6 +240,7 @@ function LoginForm({ initialRole = "member" }) {
                 onChange={(e) => setSecretKey(e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-600"
                 autoComplete="off"
+                required
               />
             </div>
           )}
@@ -216,7 +259,10 @@ function LoginForm({ initialRole = "member" }) {
         {role === "member" ? (
           <>
             Don't have an account?{" "}
-            <Link to="/register" className="text-blue-700 hover:underline">
+            <Link
+              to="/register"
+              className="text-blue-700 hover:underline"
+            >
               Create one
             </Link>
           </>

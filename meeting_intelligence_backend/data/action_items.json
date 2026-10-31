@@ -1,0 +1,72 @@
+[
+  {
+    "_id": "act_001",
+    "meetingId": "meeting_website_sprint_001",
+    "meetingTitle": "Website Development \u2013 Sprint Planning",
+    "userId": "user_prachi_001",
+    "task": "Complete responsive dashboard layout and test viewports",
+    "assignee": "Rahul",
+    "deadline": "Thursday",
+    "calendarDate": "2026-10-23",
+    "isInferred": false,
+    "status": "pending",
+    "createdAt": "2026-10-08T10:05:00Z",
+    "updatedAt": "2026-10-08T10:05:00Z"
+  },
+  {
+    "_id": "act_002",
+    "meetingId": "meeting_website_sprint_001",
+    "meetingTitle": "Website Development \u2013 Sprint Planning",
+    "userId": "user_prachi_001",
+    "task": "Configure CMS integration and endpoint schema mappings",
+    "assignee": "Ayush",
+    "deadline": "Friday",
+    "calendarDate": "2026-10-24",
+    "isInferred": false,
+    "status": "pending",
+    "createdAt": "2026-10-08T10:05:00Z",
+    "updatedAt": "2026-10-08T10:05:00Z"
+  },
+  {
+    "_id": "act_003",
+    "meetingId": "meeting_website_sprint_001",
+    "meetingTitle": "Website Development \u2013 Sprint Planning",
+    "userId": "user_prachi_001",
+    "task": "Review sprint cadence metrics and team bandwidth",
+    "assignee": "Prachi",
+    "deadline": "Monday",
+    "calendarDate": "2026-10-27",
+    "isInferred": false,
+    "status": "in_progress",
+    "createdAt": "2026-10-08T10:05:00Z",
+    "updatedAt": "2026-10-08T10:05:00Z"
+  },
+  {
+    "_id": "act_004",
+    "meetingId": "meeting_website_sprint_001",
+    "meetingTitle": "Website Development \u2013 Sprint Planning",
+    "userId": "user_prachi_001",
+    "task": "Share sprint notes with stakeholders and collect feedback",
+    "assignee": "Ayush",
+    "deadline": "Tuesday",
+    "calendarDate": "2026-10-28",
+    "isInferred": true,
+    "status": "completed",
+    "createdAt": "2026-10-08T10:05:00Z",
+    "updatedAt": "2026-10-08T10:05:00Z"
+  },
+  {
+    "_id": "act_005",
+    "meetingId": "meeting_roadmap_002",
+    "meetingTitle": "Product Roadmap Review",
+    "userId": "user_prachi_001",
+    "task": "Design wireframes for offline mobile sync workflow",
+    "assignee": "Design Team",
+    "deadline": "Next Wednesday",
+    "calendarDate": "2026-10-29",
+    "isInferred": false,
+    "status": "pending",
+    "createdAt": "2026-10-07T14:35:00Z",
+    "updatedAt": "2026-10-07T14:35:00Z"
+  }
+]

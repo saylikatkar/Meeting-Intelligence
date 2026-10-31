@@ -1,0 +1,27 @@
+[
+  {
+    "_id": "user_prachi_001",
+    "name": "Prachi",
+    "email": "prachi@example.com",
+    "passwordHash": "1656f70c98c6c1495aa10e03ab2811bc05a15c4ff9c0bc5e819b03f2f48db6cb",
+    "role": "member",
+    "status": "active",
+    "phone": "+1 (555) 234-5678",
+    "totalMeetings": 5,
+    "totalMinutesProcessed": 384,
+    "createdAt": "2026-10-01T09:00:00Z",
+    "lastLoginAt": "2026-10-28T18:04:16.234706"
+  },
+  {
+    "_id": "user_admin_001",
+    "name": "Ayush Kumar",
+    "email": "ayush@example.com",
+    "passwordHash": "19060c48fc1768bd997c43a1878777192d9dc820c30ac64192808f60d366112e",
+    "role": "admin",
+    "status": "active",
+    "totalMeetings": 12,
+    "totalMinutesProcessed": 384,
+    "createdAt": "2026-09-15T08:00:00Z",
+    "lastLoginAt": "2026-10-23T19:30:18.539764"
+  }
+]

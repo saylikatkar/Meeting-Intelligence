@@ -1,0 +1,23 @@
+[
+  {
+    "_id": "spk_001",
+    "meetingId": "meeting_website_sprint_001",
+    "label": "SPEAKER_1",
+    "name": "Ayush",
+    "role": "Project Manager"
+  },
+  {
+    "_id": "spk_002",
+    "meetingId": "meeting_website_sprint_001",
+    "label": "SPEAKER_2",
+    "name": "Rahul",
+    "role": "Frontend Lead"
+  },
+  {
+    "_id": "spk_003",
+    "meetingId": "meeting_website_sprint_001",
+    "label": "SPEAKER_3",
+    "name": "Prachi",
+    "role": "Scrum Master"
+  }
+]

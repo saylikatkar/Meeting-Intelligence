@@ -1,0 +1,123 @@
+[
+  {
+    "_id": "seg_001",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 1,
+    "startTime": 4.0,
+    "endTime": 10.0,
+    "text": "Good morning everyone. Let's start our sprint planning meeting.",
+    "speakerId": "spk_001",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "seg_002",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 2,
+    "startTime": 10.5,
+    "endTime": 17.5,
+    "text": "We need to discuss the website development progress, deliverable timeline, and deadlines.",
+    "speakerId": "spk_001",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "seg_003",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 3,
+    "startTime": 18.0,
+    "endTime": 24.5,
+    "text": "The frontend is almost complete. I am currently polishing the responsive layouts.",
+    "speakerId": "spk_002",
+    "speakerLabel": "SPEAKER_2",
+    "speakerName": "Rahul"
+  },
+  {
+    "_id": "seg_004",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 4,
+    "startTime": 25.0,
+    "endTime": 32.5,
+    "text": "Can we finish the responsive layout and test it across mobile devices by Thursday?",
+    "speakerId": "spk_003",
+    "speakerLabel": "SPEAKER_3",
+    "speakerName": "Prachi"
+  },
+  {
+    "_id": "seg_005",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 5,
+    "startTime": 33.0,
+    "endTime": 40.0,
+    "text": "Yes, that should be possible. I will have it ready for review by Thursday evening.",
+    "speakerId": "spk_002",
+    "speakerLabel": "SPEAKER_2",
+    "speakerName": "Rahul"
+  },
+  {
+    "_id": "seg_006",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 6,
+    "startTime": 41.0,
+    "endTime": 51.0,
+    "text": "Excellent. I will configure the CMS integration and schema mappings on Friday.",
+    "speakerId": "spk_001",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "seg_007",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 7,
+    "startTime": 52.0,
+    "endTime": 64.0,
+    "text": "What about the client assets and copy approval? Do we have everything needed?",
+    "speakerId": "spk_003",
+    "speakerLabel": "SPEAKER_3",
+    "speakerName": "Prachi"
+  },
+  {
+    "_id": "seg_008",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 8,
+    "startTime": 65.0,
+    "endTime": 77.0,
+    "text": "The client confirmed they will deliver the final website content and assets by Monday morning.",
+    "speakerId": "spk_001",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "seg_009",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 9,
+    "startTime": 78.0,
+    "endTime": 89.0,
+    "text": "That fits our schedule. Once the CMS is configured, we can hook up the dynamic content.",
+    "speakerId": "spk_002",
+    "speakerLabel": "SPEAKER_2",
+    "speakerName": "Rahul"
+  },
+  {
+    "_id": "seg_010",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 10,
+    "startTime": 90.0,
+    "endTime": 101.0,
+    "text": "Let's make sure our staging environment is tested before we deploy to production.",
+    "speakerId": "spk_003",
+    "speakerLabel": "SPEAKER_3",
+    "speakerName": "Prachi"
+  },
+  {
+    "_id": "seg_011",
+    "meetingId": "meeting_website_sprint_001",
+    "segmentNumber": 11,
+    "startTime": 102.0,
+    "endTime": 115.0,
+    "text": "Agreed. So the final decision is that the website must be completed and deployed by Friday.",
+    "speakerId": "spk_001",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  }
+]

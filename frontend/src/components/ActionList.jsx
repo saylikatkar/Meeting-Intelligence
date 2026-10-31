@@ -14,52 +14,90 @@ const priorityTags = {
   low: "bg-gray-100 text-gray-600",
 };
 
-function initials(name) {
-  return name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+function initials(name = "") {
+  return String(name).trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 }
 
 // Kanban board / list of action items.
 // `meetingId` limits it to one meeting; `heading` shows the page title row.
 function ActionList({ meetingId, heading }) {
   const { addAction, updateAction, deleteAction } = useData();
-  const { account, meetings, actions } = useMember();
+  const { account, meetings, actions, actionsLoaded } = useMember();
   const [view, setView] = useState("board");
   const [filterMeeting, setFilterMeeting] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [menuFor, setMenuFor] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [form, setForm] = useState({ task: "", assignee: "", due: "", priority: "medium", meetingId: meetingId || "" });
   const [error, setError] = useState("");
 
   const meetingTitle = (id) => meetings.find((m) => m.id === id)?.title || "—";
   const scope = meetingId || filterMeeting;
-  const items = actions
-    .filter((a) => scope === "all" || a.meetingId === scope)
-    .filter((a) => filterPriority === "all" || a.priority === filterPriority)
-    .sort((a, b) => a.due.localeCompare(b.due));
+  const items = [...actions]
+    .filter((a) => scope === "all" || String(a.meetingId) === String(scope))
+    .filter((a) => filterPriority === "all" || String(a.priority || "medium").toLowerCase() === filterPriority)
+    .sort((a, b) => String(a.due || "").localeCompare(String(b.due || "")));
   const byStatus = (s) => items.filter((a) => a.status === s);
   const today = new Date().toISOString().slice(0, 10);
 
-  function handleAdd(e) {
+  async function handleAdd(e) {
     e.preventDefault();
-    if (!form.task.trim() || !form.meetingId || !form.due) {
-      setError("Add a task, pick a meeting and choose a due date.");
+    setError("");
+    if (!form.task.trim() || !form.due || (!meetingId && !form.meetingId)) {
+      setError("Add a task, choose a meeting and select a due date.");
       return;
     }
-    addAction({ ...form, task: form.task.trim(), assignee: form.assignee.trim() || account.name, ownerId: account.id });
-    setForm({ task: "", assignee: "", due: "", priority: "medium", meetingId: meetingId || "" });
-    setError("");
-    setAdding(false);
+    if (!account) {
+      setError("Your account could not be loaded. Please sign in again.");
+      return;
+    }
+    const selectedMeetingId = meetingId || form.meetingId;
+    const selectedMeeting = meetings.find((m) => String(m.id) === String(selectedMeetingId));
+    try {
+      setSaving(true);
+      await addAction({
+        ...form,
+        meetingId: selectedMeetingId,
+        meetingTitle: selectedMeeting?.title || "",
+        task: form.task.trim(),
+        assignee: form.assignee.trim() || account.name || "Unassigned",
+        ownerId: account.id,
+      });
+      setForm({ task: "", assignee: "", due: "", priority: "medium", meetingId: meetingId || "" });
+      setAdding(false);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || err.response?.data?.detail || err.message || "Unable to save action item.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDelete(a) {
+  async function handleStatusChange(a, status) {
+    setError("");
+    setUpdatingId(a.id);
+    try {
+      await updateAction(a.id, { status });
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || err.response?.data?.detail || err.message || "Unable to update status.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(a) {
     setMenuFor(null);
-    if (window.confirm(`Delete "${a.task}"?`)) deleteAction(a.id);
+    if (!window.confirm(`Delete "${a.task}"?`)) return;
+    try {
+      setDeletingId(a.id);
+      await deleteAction(a.id);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || err.response?.data?.detail || err.message || "Unable to delete action item.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const viewToggle = (
@@ -83,8 +121,9 @@ function ActionList({ meetingId, heading }) {
 
   const statusSelect = (a, extra = "") => (
     <select
-      value={a.status}
-      onChange={(e) => updateAction(a.id, { status: e.target.value })}
+      value={statuses.includes(a.status) ? a.status : "pending"}
+      disabled={updatingId === a.id}
+      onChange={(e) => handleStatusChange(a, e.target.value)}
       className={`${selectClass} ${extra}`}
       aria-label={`Move ${a.task}`}
     >
@@ -97,12 +136,15 @@ function ActionList({ meetingId, heading }) {
   );
 
   const card = (a) => {
-    const overdue = a.status !== "completed" && a.due < today;
+    const priority = String(a.priority || "medium").toLowerCase();
+    const assignee = a.assignee || "Unassigned";
+    const due = a.due || "TBD";
+    const overdue = a.status !== "completed" && due !== "TBD" && due < today;
     return (
       <article key={a.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-xs font-semibold rounded-md px-2 py-0.5 ${priorityTags[a.priority] || priorityTags.medium}`}>
-            {a.priority.charAt(0).toUpperCase() + a.priority.slice(1)} priority
+          <span className={`text-xs font-semibold rounded-md px-2 py-0.5 ${priorityTags[priority] || priorityTags.medium}`}>
+            {priority.charAt(0).toUpperCase() + priority.slice(1)} priority
           </span>
           <div className="relative">
             <button
@@ -121,7 +163,7 @@ function ActionList({ meetingId, heading }) {
                       Open meeting
                     </Link>
                   )}
-                  <button onClick={() => handleDelete(a)} className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">
+                  <button disabled={deletingId === a.id} onClick={() => handleDelete(a)} className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">
                     Delete task
                   </button>
                 </div>
@@ -136,13 +178,13 @@ function ActionList({ meetingId, heading }) {
         <div className="flex items-center justify-between gap-2 mt-3 text-xs">
           <span className="flex items-center gap-2 text-gray-600 min-w-0">
             <span className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shrink-0">
-              {initials(a.assignee)}
+              {initials(assignee)}
             </span>
-            <span className="truncate">{a.assignee}</span>
+            <span className="truncate">{assignee}</span>
           </span>
           <span className={`flex items-center gap-1 shrink-0 ${overdue ? "text-red-600" : "text-gray-500"}`}>
             <Icon name="calendar" className="w-3.5 h-3.5" />
-            {formatDate(a.due)}
+            {due === "TBD" ? "No due date" : formatDate(due)}
           </span>
         </div>
 
@@ -156,6 +198,8 @@ function ActionList({ meetingId, heading }) {
 
   return (
     <div>
+      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
       {heading ? (
         <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
@@ -169,6 +213,9 @@ function ActionList({ meetingId, heading }) {
         <div className="mb-4">{viewToggle}</div>
       )}
 
+      {!actionsLoaded ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-500">Loading action items...</div>
+      ) : <>
       {/* summary strip */}
       <div className="grid grid-cols-3 gap-4">
         {statuses.map((s) => (
@@ -247,8 +294,8 @@ function ActionList({ meetingId, heading }) {
               ))}
             </select>
           )}
-          <button type="submit" className={`${secondaryButton} py-2`}>
-            Save task
+          <button type="submit" disabled={saving} className={`${secondaryButton} py-2`}>
+            {saving ? "Saving..." : "Save task"}
           </button>
           {error && <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-5">{error}</p>}
         </form>
@@ -277,37 +324,44 @@ function ActionList({ meetingId, heading }) {
       ) : (
         <ul className="mt-4 bg-white border border-gray-200 rounded-lg">
           {items.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-500">No action items yet.</li>}
-          {items.map((a) => (
+          {items.map((a) => {
+            const priority = String(a.priority || "medium").toLowerCase();
+            const assignee = a.assignee || "Unassigned";
+            const due = a.due || "TBD";
+            return (
             <li key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-gray-100 first:border-t-0">
               <input
                 type="checkbox"
                 checked={a.status === "completed"}
-                onChange={(e) => updateAction(a.id, { status: e.target.checked ? "completed" : "pending" })}
+                disabled={updatingId === a.id}
+                onChange={(e) => handleStatusChange(a, e.target.checked ? "completed" : "pending")}
                 aria-label={`Complete ${a.task}`}
               />
               <span className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-[10px] font-bold shrink-0">
-                {initials(a.assignee)}
+                {initials(assignee)}
               </span>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${a.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"}`}>{a.task}</p>
                 <p className="text-xs text-gray-500">
                   {!meetingId && `${meetingTitle(a.meetingId)} · `}
-                  {a.assignee} · due {formatDate(a.due)}
+                  {a.assignee} · due {due === "TBD" ? "No due date" : formatDate(due)}
                 </p>
               </div>
-              <span className={`text-xs font-semibold rounded-md px-2 py-0.5 ${priorityTags[a.priority] || priorityTags.medium}`}>
-                {a.priority.charAt(0).toUpperCase() + a.priority.slice(1)}
+              <span className={`text-xs font-semibold rounded-md px-2 py-0.5 ${priorityTags[priority] || priorityTags.medium}`}>
+                {priority.charAt(0).toUpperCase() + priority.slice(1)}
               </span>
               {statusSelect(a)}
-              <button onClick={() => handleDelete(a)} className="text-gray-400 hover:text-red-600 p-1" aria-label={`Delete ${a.task}`}>
+              <button disabled={deletingId === a.id} onClick={() => handleDelete(a)} className="text-gray-400 hover:text-red-600 p-1" aria-label={`Delete ${a.task}`}>
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M18 6 6 18M6 6l12 12" />
                 </svg>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
+      </>}
     </div>
   );
 }

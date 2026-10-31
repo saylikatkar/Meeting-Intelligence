@@ -1,0 +1,182 @@
+[
+  {
+    "meetingId": "meeting_website_sprint_001",
+    "summary": "The team aligned on the website development sprint deliverables, prioritizing frontend responsive polish, headless CMS integration, and staging verification. Rahul committed to delivering the responsive layouts by Thursday evening, and Ayush will configure CMS schema integrations on Friday. Final website content will be supplied by the client on Monday morning.",
+    "keyPoints": [
+      "Frontend responsive layouts and cross-device testing status.",
+      "Headless CMS integration and schema mappings schedule.",
+      "Client content assets delivery timeline.",
+      "Staging environment testing protocol prior to production release.",
+      "Sprint delivery milestones and target sign-off dates."
+    ],
+    "topics": [
+      "Website Development",
+      "Frontend Layouts",
+      "CMS Configuration",
+      "Client Deliverables",
+      "Deployment Planning"
+    ],
+    "decisions": [
+      "Frontend responsive layout must be completed and tested before CMS deployment starts.",
+      "Target project completion and staging delivery date is scheduled for Friday.",
+      "Client will provide final website content assets and copy by Monday morning."
+    ],
+    "finalDecision": "The team agreed that the website development must be completed and deployed by Friday.",
+    "actionItems": [
+      {
+        "task": "Complete responsive dashboard layout and test viewports",
+        "assignee": "Rahul",
+        "deadline": "Thursday",
+        "calendarDate": "2026-10-23",
+        "isInferred": false,
+        "status": "pending"
+      },
+      {
+        "task": "Configure CMS integration and endpoint schema mappings",
+        "assignee": "Ayush",
+        "deadline": "Friday",
+        "calendarDate": "2026-10-24",
+        "isInferred": false,
+        "status": "pending"
+      },
+      {
+        "task": "Review sprint cadence metrics and team bandwidth",
+        "assignee": "Prachi",
+        "deadline": "Monday",
+        "calendarDate": "2026-10-27",
+        "isInferred": false,
+        "status": "in_progress"
+      },
+      {
+        "task": "Share sprint notes with stakeholders and collect feedback",
+        "assignee": "Ayush",
+        "deadline": "Tuesday",
+        "calendarDate": "2026-10-28",
+        "isInferred": true,
+        "status": "completed"
+      }
+    ],
+    "deadlines": [
+      {
+        "item": "Frontend responsive polish completion",
+        "deadline": "Thursday",
+        "isInferred": false
+      },
+      {
+        "item": "CMS configuration and deployment milestone",
+        "deadline": "Friday",
+        "isInferred": false
+      },
+      {
+        "item": "Client asset handover",
+        "deadline": "Monday",
+        "isInferred": false
+      }
+    ],
+    "questions": [
+      {
+        "question": "Can the frontend responsive design be completed by Thursday?",
+        "classification": "Answered",
+        "answer": "Yes, Rahul confirmed the layout will be ready for review by Thursday evening."
+      },
+      {
+        "question": "Which hosting provider and cloud environment will be selected?",
+        "classification": "Unanswered",
+        "answer": "Hosting provider has not yet been finalized; pending architectural review."
+      },
+      {
+        "question": "Who will configure CMS schemas and webhooks?",
+        "classification": "Answered",
+        "answer": "Ayush agreed to configure the CMS on Friday."
+      }
+    ],
+    "unresolvedIssues": [
+      "Hosting provider and production server tier not yet finalized.",
+      "CMS webhook synchronization method with frontend not yet confirmed.",
+      "Final budget and third-party API rate quotas require formal approval."
+    ],
+    "risks": [
+      "Potential delay in receiving client content assets before Monday.",
+      "CMS schema updates mid-sprint could cause integration delays.",
+      "Staging deployment environment not yet fully provisioned."
+    ],
+    "updatedAt": "2026-10-08T10:05:00Z",
+    "_id": "6ad90d9ed708bbb4ce7321f8"
+  },
+  {
+    "meetingId": "meeting_roadmap_002",
+    "summary": "Review of Q4 product roadmap, onboarding enhancements, and mobile app timeline.",
+    "keyPoints": [
+      "Sprint objectives alignment",
+      "Architecture review",
+      "Delivery milestones"
+    ],
+    "decisions": [
+      "Prioritize seamless mobile authentication before building offline sync."
+    ],
+    "finalDecision": "Prioritize seamless mobile authentication before building offline sync.",
+    "actionItems": [],
+    "deadlines": [],
+    "questions": [],
+    "unresolvedIssues": [],
+    "risks": [],
+    "_id": "6ad90d9ed708bbb4ce7321f9"
+  },
+  {
+    "meetingId": "meeting_feedback_003",
+    "summary": "Synthesized customer interview findings highlighting the demand for transcript search.",
+    "keyPoints": [
+      "Sprint objectives alignment",
+      "Architecture review",
+      "Delivery milestones"
+    ],
+    "decisions": [
+      "Implement real-time timestamp-based search in upcoming release."
+    ],
+    "finalDecision": "Implement real-time timestamp-based search in upcoming release.",
+    "actionItems": [],
+    "deadlines": [],
+    "questions": [],
+    "unresolvedIssues": [],
+    "risks": [],
+    "_id": "6ad90d9ed708bbb4ce7321fa"
+  },
+  {
+    "meetingId": "meeting_weekly_004",
+    "summary": "Discussion of backend microservices latency and Celery queue throughput.",
+    "keyPoints": [
+      "Sprint objectives alignment",
+      "Architecture review",
+      "Delivery milestones"
+    ],
+    "decisions": [
+      "Evaluate Redis queue tuning and database connection pooling."
+    ],
+    "finalDecision": "Evaluate Redis queue tuning and database connection pooling.",
+    "actionItems": [],
+    "deadlines": [],
+    "questions": [],
+    "unresolvedIssues": [],
+    "risks": [],
+    "_id": "6ad90d9ed708bbb4ce7321fb"
+  },
+  {
+    "meetingId": "meeting_design_005",
+    "summary": "Design review of the dark theme color palette and accessibility contrast.",
+    "keyPoints": [
+      "Sprint objectives alignment",
+      "Architecture review",
+      "Delivery milestones"
+    ],
+    "decisions": [
+      "Revise tertiary accent colors to meet WCAG AA standards."
+    ],
+    "finalDecision": "Revise tertiary accent colors to meet WCAG AA standards.",
+    "actionItems": [],
+    "deadlines": [],
+    "questions": [],
+    "unresolvedIssues": [],
+    "risks": [],
+    "_id": "6ad90d9ed708bbb4ce7321fc"
+  }
+]

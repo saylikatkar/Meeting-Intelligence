@@ -1,0 +1,67 @@
+[
+  {
+    "_id": "meeting_website_sprint_001",
+    "userId": "user_prachi_001",
+    "title": "Website Development \u2013 Sprint Planning",
+    "fileUrl": "https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3",
+    "fileType": "video",
+    "duration": 2700,
+    "language": "English",
+    "status": "completed",
+    "speakerCount": 3,
+    "createdAt": "2026-10-08T10:00:00Z",
+    "completedAt": "2026-10-08T10:05:00Z"
+  },
+  {
+    "_id": "meeting_roadmap_002",
+    "userId": "user_prachi_001",
+    "title": "Product Roadmap Review",
+    "fileUrl": "",
+    "fileType": "video",
+    "duration": 1920,
+    "language": "English",
+    "status": "completed",
+    "speakerCount": 4,
+    "createdAt": "2026-10-07T14:30:00Z",
+    "completedAt": "2026-10-07T14:34:00Z"
+  },
+  {
+    "_id": "meeting_feedback_003",
+    "userId": "user_prachi_001",
+    "title": "Customer Feedback Sync",
+    "fileUrl": "",
+    "fileType": "audio",
+    "duration": 1620,
+    "language": "English",
+    "status": "completed",
+    "speakerCount": 3,
+    "createdAt": "2026-10-06T11:00:00Z",
+    "completedAt": "2026-10-06T11:04:00Z"
+  },
+  {
+    "_id": "meeting_weekly_004",
+    "userId": "user_prachi_001",
+    "title": "Weekly Engineering Sync",
+    "fileUrl": "",
+    "fileType": "video",
+    "duration": 2400,
+    "language": "English",
+    "status": "processing",
+    "speakerCount": 5,
+    "createdAt": "2026-10-05T09:00:00Z",
+    "completedAt": null
+  },
+  {
+    "_id": "meeting_design_005",
+    "userId": "user_prachi_001",
+    "title": "Design System Handoff",
+    "fileUrl": "",
+    "fileType": "video",
+    "duration": 1200,
+    "language": "English",
+    "status": "failed",
+    "speakerCount": 2,
+    "createdAt": "2026-10-04T16:00:00Z",
+    "completedAt": null
+  }
+]

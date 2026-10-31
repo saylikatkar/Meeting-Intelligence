@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  backend:
+    build: .
+    container_name: meeting_intel_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-default_secret_key_change_me}
+      - DEBUG=True
+      - MONGO_URI=${MONGO_URI}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./data:/app/data
+    depends_on:
+      - redis
+
+  celery-worker:
+    build: .
+    container_name: meeting_intel_celery
+    restart: unless-stopped
+    command: celery -A config worker -l info --pool=threads
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-default_secret_key_change_me}
+      - MONGO_URI=${MONGO_URI}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./data:/app/data
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: meeting_intel_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"

@@ -26,7 +26,14 @@ function diff(now, before) {
 function MemberDashboard() {
   const { user } = useAuth();
   const { addSampleMeetings } = useData();
-  const { account, meetings, actions } = useMember();
+  const {
+  account,
+  meetings,
+  actions,
+  meetingsLoaded,
+  actionsLoaded,
+  apiError,
+} = useMember();
 
   const thisMonth = meetings.filter((m) => m.date.startsWith(monthKey(0)));
   const lastMonth = meetings.filter((m) => m.date.startsWith(monthKey(-1)));
