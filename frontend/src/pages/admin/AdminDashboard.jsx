@@ -1,6 +1,7 @@
+
 import DashboardLayout from "../../layouts/DashboardLayout";
 import StatCard from "../../components/StatCard";
-import QuickActions from "../../components/QuickActions";
+
 import { useData } from "../../context/DataContext";
 import { adminStats, todayUsage, meetingsPerDay } from "../../data/mockData";
 import { formatDate, formatNumber } from "../../utils/format";
@@ -8,7 +9,7 @@ import { formatDate, formatNumber } from "../../utils/format";
 function AdminDashboard() {
   const { meetings, reprocessMeeting } = useData();
 
-  const maxCount = Math.max(...meetingsPerDay.map((d) => d.count));
+  const maxCount = Math.max(...meetingsPerDay.map((d) => d.count), 1);
   const failedMeetings = meetings.filter((m) => m.status === "failed");
 
   return (
@@ -30,63 +31,39 @@ function AdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mt-6">
-        {/* chart grows so this column matches the height of the right one */}
-        <div className="lg:col-span-2 min-w-0 flex flex-col gap-4">
-        {/* meetings chart */}
-        <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-lg p-4">
-          <h3 className="font-medium text-gray-900">Meetings processed — last 7 days</h3>
-          <div className="flex-1 min-h-48 flex items-end gap-3 mt-6">
+        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg p-4">
+          <h3 className="font-medium text-gray-900">
+            Meetings processed — last 7 days
+          </h3>
+
+          <div className="h-56 flex items-end gap-3 mt-6">
             {meetingsPerDay.map((d) => (
-              <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
-                <span className="text-xs text-gray-600 mb-1">{d.count}</span>
+              <div
+                key={d.day}
+                className="flex-1 flex flex-col items-center justify-end h-full"
+              >
+                <span className="text-xs text-gray-600 mb-1">
+                  {d.count}
+                </span>
+
                 <div
                   className="w-full max-w-10 bg-blue-700 rounded-t"
-                  style={{ height: `${(d.count / maxCount) * 100}%` }}
+                  style={{
+                    height: `${(d.count / maxCount) * 100}%`,
+                  }}
                 />
-                <span className="text-xs text-gray-500 mt-2">{d.day}</span>
+
+                <span className="text-xs text-gray-500 mt-2">
+                  {d.day}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* failed meetings */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="px-4 py-3 border-b border-gray-200">
-          <h3 className="font-medium text-gray-900">Failed meetings</h3>
-        </div>
-        {failedMeetings.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-gray-500">No failed meetings right now.</p>
-        ) : (
-          <ul>
-            {failedMeetings.map((m) => (
-              <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-100 first:border-t-0">
-                <div>
-                  <p className="text-sm text-gray-900">
-                    {m.title}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {m.owner}
-                    {m.stage && ` · failed at ${m.stage}`} · {formatDate(m.date)}
-                  </p>
-                  {m.error && <p className="text-xs text-red-600 mt-0.5">{m.error}</p>}
-                </div>
-                <button
-                  onClick={() => reprocessMeeting(m.id)}
-                  className="text-sm border border-gray-300 rounded px-3 py-1 hover:bg-gray-50"
-                >
-                  Reprocess
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-        </div>
-
-        {/* today */}
-        <div className="space-y-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <h3 className="font-medium text-gray-900">Today</h3>
+
           <dl className="mt-3 text-sm divide-y divide-gray-100">
             <Row label="New users" value={`+${todayUsage.newUsers}`} />
             <Row label="Meetings" value={todayUsage.meetings} />
@@ -96,15 +73,62 @@ function AdminDashboard() {
             <Row label="AI requests" value={formatNumber(todayUsage.aiRequests)} />
           </dl>
         </div>
-        <QuickActions
-          actions={[
-            { to: "/admin/users", icon: "users", tone: "blue", title: "Manage users", text: "Add, disable or remove accounts" },
-            { to: "/admin/meetings", icon: "file", tone: "red", title: "Meetings", text: "Review and reprocess meetings", badge: failedMeetings.length || null },
-            { to: "/admin/logs", icon: "logs", tone: "gray", title: "Activity log", text: "Sign-ins and changes" },
-            { to: "/admin/settings", icon: "settings", tone: "yellow", title: "System settings", text: "Limits and models" },
-          ]}
-        />
+      </div>
+
+      <div className="mt-6 bg-white border border-gray-200 rounded-lg w-full">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-gray-900 text-lg">
+              Failed meetings
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Review and reprocess unsuccessful meetings
+            </p>
+          </div>
+
+          <span className="text-sm font-medium text-red-600 bg-red-50 rounded-full px-3 py-1">
+            {failedMeetings.length} Failed
+          </span>
         </div>
+
+        {failedMeetings.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-gray-500 text-center">
+            No failed meetings right now.
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {failedMeetings.map((m) => (
+              <li
+                key={m.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {m.title}
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    {m.owner}
+                    {m.stage && ` · failed at ${m.stage}`} · {formatDate(m.date)}
+                  </p>
+
+                  {m.error && (
+                    <p className="text-xs text-red-600 mt-1">
+                      {m.error}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => reprocessMeeting(m.id)}
+                  className="text-sm font-medium border border-gray-300 rounded-lg px-5 py-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors shrink-0"
+                >
+                  Reprocess
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </DashboardLayout>
   );
