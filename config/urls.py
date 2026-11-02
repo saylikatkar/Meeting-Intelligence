@@ -1,3 +1,4 @@
+
 from django.contrib import admin
 from django.urls import path, include
 from meetings.views import dashboard_summary
@@ -6,11 +7,14 @@ from meetings.user_views import users_list, user_detail
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
     path("api/auth/register/", register, name="auth-register"),
     path("api/auth/login/", login, name="auth-login"),
     path("api/auth/logout/", logout, name="auth-logout"),
+
     path("api/users/", users_list),
     path("api/users/<str:user_id>/", user_detail),
+
     path("api/dashboard/", dashboard_summary, name="dashboard"),
     path("api/meetings/", include("meetings.urls")),
 ]
