@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth, roleAccounts } from "../../context/AuthContext";
-import { useData } from "../../context/DataContext";
+import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
 import Logo from "../../components/Logo";
 
 const inputClass =
@@ -9,7 +9,6 @@ const inputClass =
 
 function Register() {
   const { login } = useAuth();
-  const { users, createMember, updateUser } = useData();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -22,15 +21,9 @@ function Register() {
 
   function validate() {
     const cleanEmail = email.trim().toLowerCase();
-    const reserved = Object.values(roleAccounts).map((a) => (a.email || "").toLowerCase());
 
     if (name.trim().length < 2) return "Please enter your full name.";
     if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return "Please enter a valid email address.";
-    const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
-    // accounts without a password (added by an admin, or from older versions) can be claimed here
-    if (reserved.includes(cleanEmail) || (existing && (existing.password || existing.role !== "member"))) {
-      return "An account with this email already exists. Try signing in.";
-    }
     if (password.length < 8) return "Use at least 8 characters for your password.";
     if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return "Your password needs at least one letter and one number.";
     if (password !== confirm) return "Passwords do not match.";
@@ -45,19 +38,20 @@ function Register() {
 
     setLoading(true);
     try {
-      // TODO: replace with POST /api/auth/register/
       const profile = { name: name.trim(), email: email.trim(), password };
-      const existing = users.find((u) => u.email.toLowerCase() === profile.email.toLowerCase());
-      if (existing) {
-        const changes = { name: profile.name, password };
-        updateUser(existing.id, changes, `${profile.email} set a password for their account`);
-      } else {
-        createMember(profile, `New member signed up: ${email.trim()}`);
-      }
+
+      // 1) save the new member in the MongoDB team database
+      await api.post("/auth/register/", profile);
+
+      // 2) sign them in with the account that was just saved
       await login(email.trim(), password, "member", profile);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || "Could not create your account. Try again.");
+      if (!err.response) {
+        setError("Cannot reach the server. Make sure the backend is running (python manage.py runserver).");
+      } else {
+        setError(err.response?.data?.detail || err.message || "Could not create your account. Try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -70,7 +64,7 @@ function Register() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
       <Logo className="mb-8" />
 
-        {/* form */}
+      {/* form */}
       <div className="w-full max-w-lg bg-white border border-gray-200 rounded-lg p-6">
         <h1 className="text-xl font-semibold text-gray-900">Create your account</h1>
         <p className="text-sm text-gray-500 mt-1">Turn every meeting into a summary, action items and clear next steps.</p>

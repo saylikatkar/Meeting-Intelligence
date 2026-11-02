@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth, roleAccounts } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import Logo from "./Logo";
 
@@ -24,7 +24,7 @@ const roles = {
 
 function LoginForm({ initialRole = "member" }) {
   const { login, updateProfile } = useAuth();
-  const { users, staffProfiles, addLog } = useData();
+  const { staffProfiles, addLog } = useData();
   const navigate = useNavigate();
 
   const [role, setRole] = useState(initialRole);
@@ -41,23 +41,6 @@ function LoginForm({ initialRole = "member" }) {
     setError("");
   }
 
-  // registered members are checked against the local store until the API is ready
-  function findMember() {
-    return users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-  }
-
-  function checkMember() {
-    const typed = email.trim().toLowerCase();
-    if (Object.values(roleAccounts).some((a) => (a.email || "").toLowerCase() === typed)) {
-      return "This email belongs to the admin account. Choose Admin above.";
-    }
-    const account = findMember();
-    // same message for unknown email and wrong password, so emails can't be guessed
-    if (!account || account.password !== password) return "Invalid email or password.";
-    if (account.status === "disabled") return "This account has been disabled. Contact your admin.";
-    return "";
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -71,19 +54,12 @@ function LoginForm({ initialRole = "member" }) {
       return;
     }
 
-    if (role === "member") {
-      const memberError = checkMember();
-      if (memberError) {
-        addLog("auth", `Failed member sign-in attempt for ${email.trim()}`, "warning", "system");
-        setError(memberError);
-        return;
-      }
-    }
-
     setLoading(true);
     try {
-      const member = role === "member" ? findMember() : undefined;
-      const user = await login(email, password, role, member, secretKey);
+      // the backend checks the email, password (and secret key for admins)
+      // against the MongoDB team database
+      const user = await login(email.trim(), password, role, undefined, secretKey);
+
       if (role !== "member") {
         const savedName = staffProfiles[role]?.name;
         if (savedName) updateProfile({ name: savedName });
@@ -91,10 +67,12 @@ function LoginForm({ initialRole = "member" }) {
       }
       navigate(dashboardPaths[role]);
     } catch (err) {
-      if (role !== "member") {
-        addLog("auth", `Failed ${role} sign-in attempt for ${email}`, "warning", "system");
+      addLog("auth", `Failed ${role} sign-in attempt for ${email.trim()}`, "warning", "system");
+      if (!err.response && !err.message?.startsWith("This account is not")) {
+        setError("Cannot reach the server. Make sure the backend is running (python manage.py runserver).");
+      } else {
+        setError(err.response?.data?.detail || err.message || "Login failed. Try again.");
       }
-      setError(err.response?.data?.detail || err.message || "Login failed. Try again.");
     } finally {
       setLoading(false);
     }
@@ -221,7 +199,7 @@ function LoginForm({ initialRole = "member" }) {
             </Link>
           </>
         ) : (
-          "Admin access is set up by the system administrator."
+          "Admin access is given by an existing admin."
         )}
       </div>
     </div>
