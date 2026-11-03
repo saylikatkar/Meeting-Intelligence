@@ -1,4 +1,9 @@
 import os
+import jwt
+from bson import ObjectId
+from datetime import datetime, timezone
+
+import os
 
 from django.conf import settings
 import cloudinary
@@ -348,7 +353,116 @@ def transcribe_meeting(request, meeting_id):
             status=status.HTTP_502_BAD_GATEWAY
         )
 
+def get_authenticated_user(request):
+    auth_header = request.headers.get("Authorization", "")
 
+    if not auth_header.startswith("Bearer "):
+        return None, Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    token = auth_header.split(" ", 1)[1]
+
+    try:
+        payload = jwt.decode(
+            token,
+            os.getenv("JWT_SECRET"),
+            algorithms=["HS256"]
+        )
+
+        user = db.users.find_one({
+            "_id": ObjectId(payload["sub"])
+        })
+
+        if not user or user.get("status") == "disabled":
+            return None, Response(
+                {"detail": "Invalid or disabled account."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        return user, None
+
+    except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
+        return None, Response(
+            {"detail": "Invalid or expired token."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+@api_view(["GET", "POST", "DELETE"])
+def admin_logs(request):
+    user, error = get_authenticated_user(request)
+
+    if error:
+        return error
+
+    if request.method in ["GET", "DELETE"] and user.get("role") != "admin":
+        return Response(
+            {"detail": "Admin access required."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if request.method == "GET":
+        logs = list(
+            db.logs.find({}, {
+                "time": 1,
+                "level": 1,
+                "source": 1,
+                "actor": 1,
+                "message": 1
+            }).sort("time", -1).limit(500)
+        )
+
+        for log in logs:
+            log["id"] = str(log.pop("_id"))
+
+        return Response(logs)
+
+    if request.method == "POST":
+        log_data = {
+            "time": request.data.get("time"),
+            "level": request.data.get("level"),
+            "source": request.data.get("source"),
+            "actor": request.data.get("actor"),
+            "message": request.data.get("message"),
+        }
+
+        if not all(
+            isinstance(value, str) and value.strip()
+            for value in log_data.values()
+        ):
+            return Response(
+                {"detail": "All five log fields are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if log_data["level"] not in ["info", "warning", "error"]:
+            return Response(
+                {"detail": "Invalid log level."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        result = db.logs.insert_one(log_data)
+        log_data["id"] = str(result.inserted_id)
+
+        return Response(log_data, status=status.HTTP_201_CREATED)
+
+    if request.method == "DELETE":
+        db.logs.delete_many({})
+
+        log_data = {
+            "time": datetime.now(timezone.utc).isoformat(),
+            "level": "warning",
+            "source": "system",
+            "actor": f'{user["name"]} ({user["role"]})',
+            "message": "Cleared the activity log"
+        }
+
+        result = db.logs.insert_one(log_data)
+        log_data["id"] = str(result.inserted_id)
+
+        return Response([log_data], status=status.HTTP_200_OK)
 
 
 

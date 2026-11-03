@@ -1,3 +1,4 @@
+import api from "../services/api";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
 import * as mock from "../data/mockData";
@@ -31,7 +32,7 @@ function initialData() {
     users: mock.users,
     meetings: mock.meetings,
     actions: seedActions(),
-    logs: mock.logs,
+    logs: [],
     settings: mock.defaultSettings,
     // admin display name and preferences (the login lives in .env)
     staffProfiles: {},
@@ -54,7 +55,15 @@ function loadData() {
       const removed = new Set((saved.meetings || []).filter((m) => m.title === "Welcome call").map((m) => m.id));
       const meetings = (saved.meetings || mock.meetings).filter((m) => !removed.has(m.id));
       const actions = (saved.actions || seedActions()).filter((a) => !removed.has(a.meetingId));
-      const data = { ...initialData(), ...saved, settings, users, meetings: withJobDetails(meetings, saved.jobs), actions };
+      const data = {
+        ...initialData(),
+        ...saved,
+        settings,
+        users,
+        meetings: withJobDetails(meetings, saved.jobs),
+        actions,
+        logs: [],
+      };
       // processing jobs were removed; their stage/error now live on the meeting
       delete data.jobs;
       return saved.samplesVersion === 3 ? data : addMissingSamples(data);
@@ -191,6 +200,32 @@ export function DataProvider({ children }) {
   const [data, setData] = useState(loadData);
 
   useEffect(() => {
+    if (user?.role !== "admin") return;
+
+    const token = localStorage.getItem("access");
+
+    if (!token || token === "mock-token") {
+      return;
+    }
+
+    let active = true;
+
+    api.get("/meetings/logs/")
+      .then(({ data: logs }) => {
+        if (active) {
+          setData((prev) => ({ ...prev, logs }));
+        }
+      })
+      .catch((error) => {
+        console.error("Could not load activity logs:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.role]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
@@ -221,13 +256,37 @@ export function DataProvider({ children }) {
     return { id: newId("log"), time: new Date().toISOString(), level, source, actor: by, message };
   }
 
+  function saveLog(log) {
+    const token = localStorage.getItem("access");
+
+    if (!token || token === "mock-token") {
+      return;
+    }
+
+    const { time, level, source, actor, message } = log;
+
+    api.post("/meetings/logs/", {
+      time,
+      level,
+      source,
+      actor,
+      message,
+    }).catch((error) => {
+      console.error("Could not save activity log:", error);
+    });
+  }
+
   // apply a change and record it in the activity log
   function update(source, message, change, level) {
+    const log = makeLog(source, message, level);
+
     setData((prev) => ({
       ...prev,
       ...change(prev),
-      logs: [makeLog(source, message, level), ...prev.logs].slice(0, 500),
+      logs: [log, ...prev.logs].slice(0, 500),
     }));
+
+    saveLog(log);
   }
 
   // apply a change without logging (small edits like transcript fixes)
@@ -236,7 +295,14 @@ export function DataProvider({ children }) {
   }
 
   function addLog(source, message, level, actor) {
-    setData((prev) => ({ ...prev, logs: [makeLog(source, message, level, actor), ...prev.logs].slice(0, 500) }));
+    const log = makeLog(source, message, level, actor);
+
+    setData((prev) => ({
+      ...prev,
+      logs: [log, ...prev.logs].slice(0, 500),
+    }));
+
+    saveLog(log);
   }
 
   // `password` is only set for self-registered members (mock login check)
@@ -349,11 +415,29 @@ export function DataProvider({ children }) {
   }
 
   function clearLogs() {
-    setData((prev) => ({ ...prev, logs: [makeLog("system", "Cleared the activity log", "warning")] }));
+    const token = localStorage.getItem("access");
+
+    if (!token || token === "mock-token") {
+      setData((prev) => ({
+        ...prev,
+        logs: [makeLog("system", "Cleared the activity log", "warning")],
+      }));
+      return;
+    }
+
+    api.delete("/meetings/logs/")
+      .then(({ data: logs }) => {
+        setData((prev) => ({ ...prev, logs }));
+      })
+      .catch((error) => {
+        console.error("Could not clear activity logs:", error);
+      });
   }
 
   function resetData() {
-    setData({ ...initialData(), logs: [makeLog("system", "Reset all demo data", "warning"), ...mock.logs] });
+    const log = makeLog("system", "Reset all demo data", "warning");
+    setData({ ...initialData(), logs: [log] });
+    saveLog(log);
   }
 
   const value = {

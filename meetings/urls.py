@@ -9,11 +9,13 @@ urlpatterns = [
     path("", views.meetings_list, name="meetings-list"),
     path("dashboard/", views.dashboard_summary, name="dashboard-summary"),
     path("upload/", views.upload_meeting, name="upload-meeting"),
+    path("logs/", views.admin_logs, name="admin-logs"),
     path(
         "<str:meeting_id>/transcript/",
         views.meeting_transcript,
         name="meeting-transcript",
     ),
+    
     path(
         "<str:meeting_id>/transcribe/",
         views.transcribe_meeting,
