@@ -31,13 +31,11 @@ function LoginForm({ initialRole = "member" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [secretKey, setSecretKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function pickRole(r) {
     setRole(r);
-    setSecretKey("");
     setError("");
   }
 
@@ -66,10 +64,6 @@ function LoginForm({ initialRole = "member" }) {
       setError("Please enter your email and password.");
       return;
     }
-    if (role === "admin" && !secretKey) {
-      setError("Please enter the admin secret key.");
-      return;
-    }
 
     if (role === "member") {
       const memberError = checkMember();
@@ -83,7 +77,7 @@ function LoginForm({ initialRole = "member" }) {
     setLoading(true);
     try {
       const member = role === "member" ? findMember() : undefined;
-      const user = await login(email, password, role, member, secretKey);
+      const user = await login(email, password, role, member);
       if (role !== "member") {
         const savedName = staffProfiles[role]?.name;
         if (savedName) updateProfile({ name: savedName });
@@ -184,23 +178,6 @@ function LoginForm({ initialRole = "member" }) {
               </button>
             </div>
           </div>
-
-          {role === "admin" && (
-            <div>
-              <label htmlFor="secret-key" className="block text-sm font-medium text-gray-700 mb-1">
-                Secret key
-              </label>
-              <input
-                id="secret-key"
-                type="password"
-                placeholder="Enter the admin secret key"
-                value={secretKey}
-                onChange={(e) => setSecretKey(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-600"
-                autoComplete="off"
-              />
-            </div>
-          )}
 
           <button
             type="submit"

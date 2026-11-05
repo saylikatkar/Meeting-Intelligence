@@ -7,13 +7,12 @@ const AuthContext = createContext(null);
 // Set VITE_API_URL in .env to switch to the real backend.
 const USE_MOCK = !import.meta.env.VITE_API_URL;
 
-// The admin portal only accepts the account set in .env, plus its secret key.
+// The admin portal only accepts the account set in .env.
 export const roleAccounts = {
   admin: {
     name: import.meta.env.VITE_ADMIN_NAME || "Admin",
     email: import.meta.env.VITE_ADMIN_EMAIL,
     password: import.meta.env.VITE_ADMIN_PASSWORD,
-    secretKey: import.meta.env.VITE_ADMIN_SECRET_KEY,
   },
 };
 
@@ -36,7 +35,7 @@ function getSavedUser() {
   }
 }
 
-function mockLogin(email, password, role, profile, secretKey) {
+function mockLogin(email, password, role, profile) {
   const account = roleAccounts[role];
 
   if (!account) {
@@ -46,12 +45,12 @@ function mockLogin(email, password, role, profile, secretKey) {
     return user;
   }
 
-  if (!account.email || !account.password || !account.secretKey) {
+  if (!account.email || !account.password) {
     const prefix = `VITE_${role.toUpperCase()}`;
-    throw new Error(`The ${role} account is not set up. Add ${prefix}_EMAIL, ${prefix}_PASSWORD and ${prefix}_SECRET_KEY to .env.`);
+    throw new Error(`The ${role} account is not set up. Add ${prefix}_EMAIL and ${prefix}_PASSWORD to .env.`);
   }
-  if (!sameEmail(email, account.email) || password !== account.password || secretKey !== account.secretKey) {
-    throw new Error("Invalid email, password or secret key.");
+  if (!sameEmail(email, account.email) || password !== account.password) {
+    throw new Error("Invalid email or password.");
   }
   return { name: account.name, email: account.email, role };
 }
@@ -59,16 +58,15 @@ function mockLogin(email, password, role, profile, secretKey) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getSavedUser);
 
-  // `profile` lets mock member logins use the name from the user store;
-  // `secretKey` is only used for admin sign-in
-  async function login(email, password, role, profile, secretKey) {
+  // `profile` lets mock member logins use the name from the user store
+  async function login(email, password, role, profile) {
     let loggedInUser;
 
     if (USE_MOCK) {
-      loggedInUser = mockLogin(email, password, role, profile, secretKey);
+      loggedInUser = mockLogin(email, password, role, profile);
       localStorage.setItem("access", "mock-token");
     } else {
-      const { data } = await api.post("/auth/login/", role === "admin" ? { email, password, secret_key: secretKey } : { email, password });
+      const { data } = await api.post("/auth/login/", { email, password });
       // expected response: { access, refresh, user: { name, email, role } }
       if (data.user.role !== role) {
         throw new Error(`This account is not a ${role} account.`);

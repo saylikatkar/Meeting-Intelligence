@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Icon from "./Icon";
 
 // Brand mark + name, same as the sidebar but for light pages (login, sign-up).
-function Logo({ to = "/login", className = "" }) {
+function Logo({ to = "/", className = "" }) {
   return (
     <Link to={to} className={`flex items-center gap-3 ${className}`}>
       <span className="sb-logo w-10 h-10 rounded-xl flex items-center justify-center">
