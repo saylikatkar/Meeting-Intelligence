@@ -6,6 +6,8 @@ import { addDays, buildActionTasks, buildSummary, buildTranscript, processingSta
 const DataContext = createContext(null);
 const STORAGE_KEY = "meetingintel-data";
 const SIMULATION_MS = 3000;
+// bump to clear every saved plan once, so all accounts go back to Free
+const PLANS_VERSION = 2;
 
 // action items come from the meetings' sample action items
 function seedActions() {
@@ -36,7 +38,12 @@ function initialData() {
     // admin display name and preferences (the login lives in .env)
     staffProfiles: {},
     samplesVersion: 3,
+    plansVersion: PLANS_VERSION,
   };
+}
+
+function withoutPlan({ plan, ...user }) {
+  return user;
 }
 
 function loadData() {
@@ -49,12 +56,14 @@ function loadData() {
       // the manager role was removed; saved managers become members
       const users = (saved.users || mock.users)
         .map((u) => (u.role === "manager" ? { ...u, role: "member" } : u))
-        .map((u) => (demoIds.has(u.id) && !u.password ? { ...u, password: mock.DEMO_PASSWORD } : u));
+        .map((u) => (demoIds.has(u.id) && !u.password ? { ...u, password: mock.DEMO_PASSWORD } : u))
+        // everyone starts on Free: clear plans saved before this rule, once
+        .map((u) => (saved.plansVersion === PLANS_VERSION ? u : withoutPlan(u)));
       // drop the old "Welcome call" sample meeting from saved data
       const removed = new Set((saved.meetings || []).filter((m) => m.title === "Welcome call").map((m) => m.id));
       const meetings = (saved.meetings || mock.meetings).filter((m) => !removed.has(m.id));
       const actions = (saved.actions || seedActions()).filter((a) => !removed.has(a.meetingId));
-      const data = { ...initialData(), ...saved, settings, users, meetings: withJobDetails(meetings, saved.jobs), actions };
+      const data = { ...initialData(), ...saved, plansVersion: PLANS_VERSION, settings, users, meetings: withJobDetails(meetings, saved.jobs), actions };
       // processing jobs were removed; their stage/error now live on the meeting
       delete data.jobs;
       return saved.samplesVersion === 3 ? data : addMissingSamples(data);

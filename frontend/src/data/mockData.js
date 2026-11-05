@@ -23,11 +23,11 @@ export const recentMeetings = [
 export const DEMO_PASSWORD = "Member@123";
 
 export const users = [
-  { id: "u1", password: DEMO_PASSWORD, name: "Ayush Kumar", email: "ayush@example.com", role: "member", plan: "pro", meetings: 12, minutes: 384, status: "active", joined: "2026-10-02", lastLogin: "2026-10-08" },
+  { id: "u1", password: DEMO_PASSWORD, name: "Ayush Kumar", email: "ayush@example.com", role: "member", meetings: 12, minutes: 384, status: "active", joined: "2026-10-02", lastLogin: "2026-10-08" },
   { id: "u2", password: DEMO_PASSWORD, name: "Rahul Sharma", email: "rahul@example.com", role: "member", meetings: 8, minutes: 241, status: "active", joined: "2026-10-03", lastLogin: "2026-10-08" },
   { id: "u3", name: "Sneha Reddy", email: "sneha@example.com", role: "member", meetings: 3, minutes: 96, status: "active", joined: "2026-09-21", lastLogin: "2026-10-07" },
   { id: "u4", password: DEMO_PASSWORD, name: "Kiran Rao", email: "kiran@example.com", role: "member", meetings: 1, minutes: 14, status: "disabled", joined: "2026-09-28", lastLogin: "2026-09-30" },
-  { id: "u5", password: DEMO_PASSWORD, name: "Priya Nair", email: "priya@example.com", role: "member", plan: "team", meetings: 5, minutes: 162, status: "active", joined: "2026-10-05", lastLogin: "2026-10-06" },
+  { id: "u5", password: DEMO_PASSWORD, name: "Priya Nair", email: "priya@example.com", role: "member", meetings: 5, minutes: 162, status: "active", joined: "2026-10-05", lastLogin: "2026-10-06" },
 ];
 
 export const adminStats = {

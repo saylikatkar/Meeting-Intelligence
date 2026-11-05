@@ -2,6 +2,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { navLinks } from "./layouts/DashboardLayout";
 
+import Home from "./pages/public/Home";
+import Features from "./pages/public/Features";
+import HowItWorks from "./pages/public/HowItWorks";
+import Pricing from "./pages/public/Pricing";
+import About from "./pages/public/About";
+import Contact from "./pages/public/Contact";
+
 import MemberLogin from "./pages/auth/MemberLogin";
 import AdminLogin from "./pages/auth/AdminLogin";
 import Register from "./pages/auth/Register";
@@ -44,6 +51,13 @@ const pages = {
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+
       <Route path="/login" element={<MemberLogin />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/register" element={<Register />} />
@@ -76,7 +90,7 @@ function App() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
