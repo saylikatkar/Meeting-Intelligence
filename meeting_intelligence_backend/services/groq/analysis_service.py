@@ -1,12 +1,16 @@
+
 """
 Meeting Intelligence Analysis Service
 Extracts Executive Summary, Key Discussion Points, Decisions, Final Decision,
-Action Items, Deadlines, Questions (Answered/Unanswered), Unresolved Issues, Risks & Blockers.
+Action Items, Deadlines, Questions (Answered/Unanswered), Unresolved Issues,
+Risks & Blockers.
 """
 
 import json
 import logging
+
 from django.conf import settings
+from services.groq.usage_service import record_ai_request
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +39,7 @@ Output MUST be a valid JSON object matching this schema:
       "task": "Specific task to complete",
       "assignee": "Name of assigned person",
       "deadline": "Due date/day (e.g. Thursday or Oct 24, 2026)",
-      "isInferred": False,
+      "isInferred": false,
       "status": "pending"
     }
   ],
@@ -43,7 +47,7 @@ Output MUST be a valid JSON object matching this schema:
     {
       "item": "Task or milestone description",
       "deadline": "Deadline text",
-      "isInferred": False
+      "isInferred": false
     }
   ],
   "questions": [
@@ -68,21 +72,32 @@ CRITICAL RULES:
 - If a deadline is relative (e.g. 'by Friday'), set deadline string and set isInferred accordingly.
 """
 
+
 class MeetingAnalysisService:
+
     @staticmethod
     def analyze_meeting(meeting_title: str, transcript_text: str) -> dict:
         """
-        Runs complete meeting intelligence extraction via Groq LLM
+        Runs complete meeting intelligence extraction via Groq LLM.
         """
+
         groq_api_key = getattr(settings, "GROQ_API_KEY", "").strip()
-        model = getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile")
+        model = getattr(
+            settings,
+            "GROQ_MODEL",
+            "llama-3.3-70b-versatile"
+        )
 
         if not groq_api_key:
-            logger.info("GROQ_API_KEY not configured. Returning rich baseline analysis matching sprint demo.")
+            logger.info(
+                "GROQ_API_KEY not configured. "
+                "Returning rich baseline analysis matching sprint demo."
+            )
             return MeetingAnalysisService._get_demo_analysis(meeting_title)
 
         try:
             from groq import Groq
+
             client = Groq(api_key=groq_api_key)
 
             user_prompt = (
@@ -94,23 +109,37 @@ class MeetingAnalysisService:
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
+                    {
+                        "role": "system",
+                        "content": ANALYSIS_SYSTEM_PROMPT
+                    },
+                    {
+                        "role": "user",
+                        "content": user_prompt
+                    }
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.1
             )
 
+            # Count the successful Groq response.
+            record_ai_request("meeting_analysis")
+
             content = completion.choices[0].message.content
             return json.loads(content)
 
         except Exception as e:
-            logger.error(f"Groq meeting analysis failed ({e}). Returning high-fidelity baseline analysis.")
+            logger.error(
+                "Groq meeting analysis failed (%s). "
+                "Returning high-fidelity baseline analysis.",
+                e
+            )
             return MeetingAnalysisService._get_demo_analysis(meeting_title)
 
     @staticmethod
     def _get_demo_analysis(meeting_title: str) -> dict:
-        """Rich structured baseline intelligence matching the video"""
+        """Rich structured baseline intelligence matching the video."""
+
         return {
             "summary": (
                 f"The meeting focused on {meeting_title}, reviewing project milestone deliverables, "
@@ -137,7 +166,10 @@ class MeetingAnalysisService:
                 "Target project completion and staging delivery date is scheduled for Friday.",
                 "Client will provide final website content assets and copy by Monday morning."
             ],
-            "finalDecision": "The team agreed that the website development must be completed and deployed by Friday.",
+            "finalDecision": (
+                "The team agreed that the website development must be completed "
+                "and deployed by Friday."
+            ),
             "actionItems": [
                 {
                     "task": "Complete responsive dashboard layout and test viewports",
@@ -168,7 +200,7 @@ class MeetingAnalysisService:
                     "assignee": "Ayush",
                     "deadline": "Tuesday",
                     "calendarDate": "2026-10-28",
-                    "isInferred": true,
+                    "isInferred": True,
                     "status": "completed"
                 }
             ],

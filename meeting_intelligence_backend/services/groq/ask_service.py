@@ -1,9 +1,15 @@
 
+"""
+Ask Meeting Service
+Answers user questions using the actual meeting transcript.
+"""
+
 import json
 import logging
 from datetime import datetime, timezone
 
 from django.conf import settings
+from services.groq.usage_service import record_ai_request
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +42,7 @@ Rules:
 
 def format_timestamp(seconds):
     """Convert seconds to MM:SS or HH:MM:SS."""
+
     try:
         total_seconds = max(0, int(float(seconds or 0)))
     except (TypeError, ValueError):
@@ -69,6 +76,7 @@ class AskMeetingService:
             return AskMeetingService._not_found(question)
 
         groq_api_key = getattr(settings, "GROQ_API_KEY", "").strip()
+
         model = getattr(
             settings,
             "GROQ_MODEL",
@@ -81,11 +89,12 @@ class AskMeetingService:
                 "Ask AI is unavailable because the Groq API key is not configured."
             )
 
-        # Build transcript context from the actual meeting segments.
+        # Build transcript context from actual meeting segments.
         transcript_lines = []
         valid_segments = []
 
         for segment in transcript_segments:
+
             if not isinstance(segment, dict):
                 continue
 
@@ -96,6 +105,7 @@ class AskMeetingService:
 
             start_time = segment.get("startTime", 0)
             timestamp = format_timestamp(start_time)
+
             speaker = (
                 segment.get("speakerName")
                 or segment.get("speakerLabel")
@@ -156,6 +166,9 @@ Answer using only the transcript. Return the required JSON object.
                 temperature=0.1,
             )
 
+            # Count the successful Groq response.
+            record_ai_request("ask_ai")
+
             content = completion.choices[0].message.content
 
             if not content:
@@ -164,12 +177,15 @@ Answer using only the transcript. Return the required JSON object.
             result = json.loads(content)
 
             answer = str(result.get("answer") or "").strip()
+
             source_timestamp = str(
                 result.get("sourceTimestamp") or ""
             ).strip()
+
             cited_speaker = str(
                 result.get("citedSpeaker") or ""
             ).strip()
+
             confidence = str(
                 result.get("confidence") or "low"
             ).lower()
@@ -177,8 +193,8 @@ Answer using only the transcript. Return the required JSON object.
             if confidence not in {"high", "medium", "low"}:
                 confidence = "low"
 
-            # Verify that the cited timestamp and speaker exist in
-            # the supplied transcript.
+            # Verify that the cited timestamp and speaker exist
+            # in the supplied transcript.
             matching_segment = next(
                 (
                     segment
@@ -193,20 +209,22 @@ Answer using only the transcript. Return the required JSON object.
             )
 
             if matching_segment is None:
+
                 source_timestamp = ""
                 cited_speaker = ""
                 confidence = "low"
 
-                # Do not keep an answer that depends on an invalid citation.
                 answer = (
                     "I could not verify a supporting timestamp and speaker "
                     "in the meeting transcript."
                 )
 
             if not answer:
+
                 answer = (
                     "I could not find this information in the meeting transcript."
                 )
+
                 source_timestamp = ""
                 cited_speaker = ""
                 confidence = "low"
@@ -221,10 +239,9 @@ Answer using only the transcript. Return the required JSON object.
             }
 
         except Exception as exc:
+
             logger.exception("Groq Ask AI request failed: %s", exc)
 
-            # Do not silently replace a failed LLM response with
-            # fabricated keyword-based answers.
             raise RuntimeError(
                 "Ask AI could not generate an answer. Check the Groq "
                 "API key, model access, and server logs."
@@ -232,6 +249,7 @@ Answer using only the transcript. Return the required JSON object.
 
     @staticmethod
     def _not_found(question):
+
         return {
             "question": question,
             "answer": (

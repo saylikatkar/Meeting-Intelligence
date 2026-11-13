@@ -178,5 +178,26 @@
     "unresolvedIssues": [],
     "risks": [],
     "_id": "6ad90d9ed708bbb4ce7321fc"
+  },
+  {
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "summary": "The Manisee City Council held its organizational meeting on Tuesday, November 15, 2022. The session began with the Pledge of Allegiance, followed by the administration of the oath of office to the newly elected council members from the 1st, 3rd, 5th, and 7th districts. No substantive agenda items, decisions, or action items were discussed beyond the ceremonial proceedings.",
+    "keyPoints": [
+      "Pledge of Allegiance was recited.",
+      "Council members were sworn into office."
+    ],
+    "topics": [
+      "Council Organization",
+      "Oath of Office"
+    ],
+    "decisions": [],
+    "finalDecision": "No definitive final decision was identified.",
+    "actionItems": [],
+    "deadlines": [],
+    "questions": [],
+    "unresolvedIssues": [],
+    "risks": [],
+    "updatedAt": "2026-11-04T18:20:13.311350",
+    "_id": "6aeb775d4441e92df344a8ef"
   }
 ]

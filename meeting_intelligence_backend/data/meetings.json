@@ -62,6 +62,30 @@
     "status": "failed",
     "speakerCount": 2,
     "createdAt": "2026-10-04T16:00:00Z",
-    "completedAt": null
+    "completedAt": null,
+    "failureStage": "test",
+    "failureReason": "Testing failure tracking",
+    "failedAt": "2026-11-04T18:04:01.942016+00:00"
+  },
+  {
+    "_id": "6aeb76934441e92df344a8dd",
+    "userId": "user_prachi_001",
+    "title": "Manistee City Council Meeting 2022 11 15 \u00b7 ScreenApp   Google Chrome 2026 10 29 23 39 14 (1)",
+    "originalFileName": "Manistee_City_Council_Meeting_2022-11-15 \u00b7 ScreenApp - Google Chrome 2026-10-29 23-39-14 (1).mp4",
+    "fileType": "video",
+    "fileSize": 62692895,
+    "duration": 148.41599744,
+    "language": "English",
+    "status": "completed",
+    "speakerCount": 3,
+    "createdAt": "2026-11-04T18:16:51.429564",
+    "completedAt": "2026-11-04T18:20:13.315350",
+    "failureStage": null,
+    "failureReason": null,
+    "failedAt": null,
+    "filePath": "C:\\Users\\admin\\Downloads\\github clone\\Meeting-Intelligence\\meeting_intelligence_backend\\media\\uploads\\6aeb76934441e92df344a8de_Manistee_City_Council_Meeting_2022-11-15 \u00b7 ScreenApp - Google Chrome 2026-10-29 23-39-14 (1).mp4",
+    "fileUrl": "https://res.cloudinary.com/jxexwfgy/video/upload/v1793816395/meeting-intelligence/recordings/zsl0dz9franqvt0hfgdz.mp4",
+    "cloudinaryUrl": "https://res.cloudinary.com/jxexwfgy/video/upload/v1793816395/meeting-intelligence/recordings/zsl0dz9franqvt0hfgdz.mp4",
+    "cloudinaryPublicId": "meeting-intelligence/recordings/zsl0dz9franqvt0hfgdz"
   }
 ]

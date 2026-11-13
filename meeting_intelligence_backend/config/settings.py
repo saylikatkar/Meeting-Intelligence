@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.exports",
     "apps.calendar_events",
     "apps.user_settings",
+    "apps.subscriptions",
 ]
 
 MIDDLEWARE = [
@@ -136,10 +137,17 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "whisper-large-v3")
 
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+
+RAZORPAY_PLAN_ID_PRO = os.getenv("RAZORPAY_PLAN_ID_PRO", "")
+RAZORPAY_PLAN_ID_TEAM = os.getenv("RAZORPAY_PLAN_ID_TEAM", "")
+
 JWT_SECRET = os.getenv("JWT_SECRET", SECRET_KEY)
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "72"))
 
 # Rate Limiting & Usage Limits
-MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "200"))
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "100"))
 FREE_MEMBER_MONTHLY_MEETINGS = int(os.getenv("FREE_MEMBER_MONTHLY_MEETINGS", "5"))
 FREE_MEMBER_MAX_DURATION_MINUTES = int(os.getenv("FREE_MEMBER_MAX_DURATION_MINUTES", "60"))

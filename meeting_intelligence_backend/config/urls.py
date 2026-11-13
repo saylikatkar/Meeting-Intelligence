@@ -53,6 +53,7 @@ urlpatterns = [
     
     path("api/calendar/", include("apps.calendar_events.urls")),
     path("api/settings/", include("apps.user_settings.urls")),
+    path("api/subscriptions/", include("apps.subscriptions.urls")),
 ]
 
 if settings.DEBUG:

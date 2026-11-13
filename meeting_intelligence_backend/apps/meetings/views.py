@@ -1,11 +1,12 @@
 
 """
 Meetings API Views
-Implements meeting list, upload/create, retrieve detail, update,
-delete, processing trigger, and processing status.
+Meeting listing, uploads, details, updates, deletion and processing.
+Supports MongoDB and the local JSON fallback storage.
 """
 
 import os
+import re
 import threading
 from datetime import datetime
 from pathlib import Path as FilePath
@@ -13,10 +14,17 @@ from pathlib import Path as FilePath
 import cloudinary.uploader
 from bson import ObjectId
 from django.conf import settings
+
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.subscriptions.permissions import (
+    check_meeting_limit,
+    check_upload_size,
+    check_duration_limit,
+)
 
 from services.storage.mongo import get_collection
 from services.pipeline.processor import PipelineProcessor
@@ -30,11 +38,15 @@ ALLOWED_EXTENSIONS = {
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm"}
 
 
+# ---------------------------------------------------------
+# HELPER FUNCTIONS
+# ---------------------------------------------------------
+
 def format_duration(seconds):
     if not seconds:
         return "0 min"
 
-    mins = int(round(seconds / 60))
+    mins = int(round(float(seconds) / 60))
 
     if mins < 60:
         return f"{mins} min"
@@ -50,7 +62,8 @@ def format_duration(seconds):
 
 
 def make_json_safe(value):
-    """Convert MongoDB and Python values into JSON-serializable values."""
+    """Convert MongoDB and Python values into JSON-safe values."""
+
     if isinstance(value, ObjectId):
         return str(value)
 
@@ -72,58 +85,184 @@ def make_json_safe(value):
     return value
 
 
-class MeetingListCreateView(APIView):
+def sort_value(value):
+    """Provide a consistent sorting value for dates and strings."""
+
+    if value is None:
+        return ""
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    return str(value)
+
+
+def get_sorted_documents(collection_name, query=None,
+                         sort_field="createdAt",
+                         descending=True, limit=None):
     """
-    GET  /api/meetings/ -> list meetings and dashboard statistics.
-    POST /api/meetings/ -> upload recording to Cloudinary and create meeting.
+    Fetch documents and sort them in Python.
+
+    This avoids relying on MongoDB cursor chaining, which may not
+    be supported by the local JSON fallback.
     """
 
-    permission_classes = [AllowAny]
+    collection = get_collection(collection_name)
+
+    documents = list(collection.find(query or {}))
+
+    documents.sort(
+        key=lambda item: sort_value(item.get(sort_field)),
+        reverse=descending,
+    )
+
+    if limit is not None:
+        documents = documents[:limit]
+
+    return documents
+
+
+def is_admin_user(user):
+    """Check whether the authenticated user is an administrator."""
+
+    return (
+        getattr(user, "role", "") == "admin"
+        or getattr(user, "is_staff", False)
+        or getattr(user, "is_superuser", False)
+    )
+
+
+def user_can_access_meeting(user, meeting):
+    """Allow access only to the meeting owner or an admin."""
+
+    if not meeting:
+        return False
+
+    if is_admin_user(user):
+        return True
+
+    user_id = str(getattr(user, "id", "") or "")
+    meeting_user_id = str(meeting.get("userId", "") or "")
+
+    return bool(user_id and meeting_user_id == user_id)
+
+
+def get_meeting_or_response(meeting_id, user):
+    """Fetch a meeting and verify the current user's permission."""
+
+    meeting = get_collection("meetings").find_one({
+        "_id": meeting_id
+    })
+
+    if not meeting:
+        return None, Response(
+            {"error": "Meeting not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not user_can_access_meeting(user, meeting):
+        return None, Response(
+            {"error": "You do not have permission to access this meeting."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return meeting, None
+
+
+def cleanup_local_file(file_path):
+    """Remove a local uploaded file if it exists."""
+
+    if not file_path:
+        return
+
+    try:
+        path = FilePath(file_path)
+
+        if path.exists():
+            path.unlink()
+
+    except OSError as exc:
+        print("Local file cleanup error:", str(exc))
+
+
+def cleanup_cloudinary(public_id):
+    """Remove an uploaded Cloudinary recording."""
+
+    if not public_id:
+        return
+
+    try:
+        cloudinary.uploader.destroy(
+            public_id,
+            resource_type="video",
+        )
+
+    except Exception as exc:
+        print("Cloudinary cleanup error:", str(exc))
+
+
+# ---------------------------------------------------------
+# MEETING LIST AND UPLOAD
+# ---------------------------------------------------------
+
+class MeetingListCreateView(APIView):
+
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user_id = getattr(request.user, "id", None)
+        user_id = str(request.user.id)
+
         query = {}
 
-        if user_id:
-            if getattr(request.user, "role", "member") != "admin":
-                query["userId"] = user_id
+        # Members can only access their own meetings.
+        if not is_admin_user(request.user):
+            query["userId"] = user_id
 
         status_filter = request.query_params.get("status")
 
         if status_filter and status_filter.lower() != "all":
             query["status"] = status_filter.lower()
 
-        search_query = request.query_params.get("search")
-
-        if search_query:
-            # Escape user-supplied regex characters.
-            import re
-            query["title"] = {
-                "$regex": re.escape(search_query),
-                "$options": "i",
-            }
-
-        meetings_col = get_collection("meetings")
-        all_meetings = list(
-            meetings_col.find(query).sort("createdAt", -1)
+        # Fetch records using simple equality filters.
+        # Search and sorting are handled in Python for fallback support.
+        all_meetings = get_sorted_documents(
+            "meetings",
+            query=query,
+            sort_field="createdAt",
+            descending=True,
         )
 
+        search_query = request.query_params.get("search", "").strip()
+
+        if search_query:
+            search_lower = search_query.lower()
+
+            all_meetings = [
+                item for item in all_meetings
+                if search_lower in str(
+                    item.get("title", "")
+                ).lower()
+            ]
+
         total = len(all_meetings)
+
         completed = sum(
             1 for item in all_meetings
             if item.get("status") == "completed"
         )
+
         processing = sum(
             1 for item in all_meetings
             if item.get("status") == "processing"
         )
+
         failed = sum(
             1 for item in all_meetings
             if item.get("status") == "failed"
         )
 
         total_duration = sum(
-            item.get("duration", 0) or 0
+            float(item.get("duration", 0) or 0)
             for item in all_meetings
         )
 
@@ -146,9 +285,12 @@ class MeetingListCreateView(APIView):
         return Response(make_json_safe(response_data))
 
     def post(self, request):
-        user_id = getattr(request.user, "id", None) or "demo_user"
+        user_id = str(request.user.id)
+
         title = (request.data.get("title") or "").strip()
         uploaded_file = request.FILES.get("file")
+
+        # 1. Validate the uploaded file.
 
         if not uploaded_file:
             return Response(
@@ -170,13 +312,30 @@ class MeetingListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        max_mb = getattr(settings, "MAX_UPLOAD_SIZE_MB", 200)
+        # 2. Check the monthly meeting allowance.
 
-        if uploaded_file.size > max_mb * 1024 * 1024:
+        allowed, error_response = check_meeting_limit(user_id)
+
+        if not allowed:
             return Response(
-                {"error": f"File size exceeds the {max_mb}MB limit."},
-                status=status.HTTP_400_BAD_REQUEST,
+                error_response,
+                status=status.HTTP_403_FORBIDDEN,
             )
+
+        # 3. Check upload size.
+
+        allowed, error_response = check_upload_size(
+            user_id,
+            uploaded_file.size,
+        )
+
+        if not allowed:
+            return Response(
+                error_response,
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+
+        # 4. Generate a title if necessary.
 
         if not title:
             title = (
@@ -187,21 +346,87 @@ class MeetingListCreateView(APIView):
             )
 
         file_type = (
-            "video" if extension in VIDEO_EXTENSIONS else "audio"
+            "video"
+            if extension in VIDEO_EXTENSIONS
+            else "audio"
         )
+
+        meeting_id = str(ObjectId())
+        now = datetime.utcnow().isoformat()
+
+        meeting_doc = {
+            "_id": meeting_id,
+            "userId": user_id,
+            "title": title,
+            "originalFileName": uploaded_file.name,
+            "fileType": file_type,
+            "fileSize": uploaded_file.size,
+            "duration": 0,
+            "language": "English",
+            "status": "uploading",
+            "speakerCount": 0,
+            "createdAt": now,
+            "completedAt": None,
+            "failureStage": None,
+            "failureReason": None,
+            "failedAt": None,
+        }
+
+        meetings_col = get_collection("meetings")
+
+        try:
+            meetings_col.insert_one(meeting_doc)
+
+        except Exception as exc:
+            print("Meeting creation error:", str(exc))
+
+            return Response(
+                {"error": "Could not create the meeting record."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        def mark_failed(stage, reason):
+            failed_at = datetime.utcnow().isoformat()
+
+            meetings_col.update_one(
+                {"_id": meeting_id},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "failureStage": stage,
+                        "failureReason": str(reason),
+                        "failedAt": failed_at,
+                    }
+                },
+            )
+
+            get_collection("processing_jobs").update_one(
+                {"meetingId": meeting_id},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "currentStage": stage.upper(),
+                        "error": str(reason),
+                        "completedAt": failed_at,
+                    }
+                },
+            )
+
+        # 5. Save a local processing copy.
 
         media_dir = FilePath(
             getattr(settings, "MEDIA_ROOT", FilePath("media"))
         )
+
         upload_dir = media_dir / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         unique_filename = (
             f"{ObjectId()}_{FilePath(uploaded_file.name).name}"
         )
+
         dest_path = upload_dir / unique_filename
 
-        # Save a local copy for the existing processing pipeline.
         try:
             with open(dest_path, "wb+") as destination:
                 for chunk in uploaded_file.chunks():
@@ -210,13 +435,25 @@ class MeetingListCreateView(APIView):
         except OSError as exc:
             print("Local file save error:", str(exc))
 
+            reason = "Could not save the uploaded recording."
+            mark_failed("upload", reason)
+
             return Response(
-                {"error": "Could not save the uploaded recording locally."},
+                {"error": reason},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Upload the recording to Cloudinary.
-        # Cloudinary uses resource_type="video" for both video and audio.
+        meetings_col.update_one(
+            {"_id": meeting_id},
+            {
+                "$set": {
+                    "filePath": str(dest_path),
+                }
+            },
+        )
+
+        # 6. Upload recording to Cloudinary.
+
         try:
             cloudinary_result = cloudinary.uploader.upload_large(
                 str(dest_path),
@@ -229,17 +466,15 @@ class MeetingListCreateView(APIView):
         except Exception as exc:
             print("Cloudinary upload error:", str(exc))
 
-            try:
-                dest_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            cleanup_local_file(dest_path)
+
+            reason = "Cloudinary upload failed. Check server logs."
+            mark_failed("upload", reason)
 
             return Response(
                 {
-                    "error": (
-                        "Cloudinary upload failed. Check your Cloudinary "
-                        "credentials and server logs, then try again."
-                    )
+                    "error": reason,
+                    "meetingId": meeting_id,
                 },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
@@ -248,55 +483,104 @@ class MeetingListCreateView(APIView):
         cloudinary_public_id = cloudinary_result.get("public_id", "")
 
         if not cloudinary_url or not cloudinary_public_id:
-            try:
-                dest_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            cleanup_cloudinary(cloudinary_public_id)
+            cleanup_local_file(dest_path)
+
+            reason = (
+                "Cloudinary did not return the recording URL "
+                "and public ID."
+            )
+
+            mark_failed("upload", reason)
 
             return Response(
-                {"error": "Cloudinary did not return the recording URL and public ID."},
+                {
+                    "error": reason,
+                    "meetingId": meeting_id,
+                },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        # The browser sends duration in seconds when available.
+        # 7. Obtain the duration from Cloudinary.
+
         try:
-            duration_seconds = max(
-                0,
-                int(float(request.data.get("duration", 0))),
+            duration_value = cloudinary_result.get("duration")
+
+            if duration_value is None:
+                raise ValueError(
+                    "Cloudinary did not return recording duration."
+                )
+
+            duration_seconds = float(duration_value)
+
+            if duration_seconds <= 0:
+                raise ValueError("Invalid recording duration.")
+
+        except (TypeError, ValueError) as exc:
+            cleanup_cloudinary(cloudinary_public_id)
+            cleanup_local_file(dest_path)
+
+            reason = str(exc)
+            mark_failed("validation", reason)
+
+            return Response(
+                {
+                    "error": (
+                        "Could not determine the recording duration. "
+                        "Please try another recording."
+                    ),
+                    "meetingId": meeting_id,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except (TypeError, ValueError):
-            duration_seconds = 0
 
-        meeting_id = str(ObjectId())
-        now = datetime.utcnow().isoformat()
+        # 8. Check the duration allowance.
 
-        meeting_doc = {
-            "_id": meeting_id,
-            "userId": user_id,
-            "title": title,
+        allowed, error_response = check_duration_limit(
+            user_id,
+            duration_seconds / 60,
+        )
 
-            # Cloudinary storage metadata
-            "fileUrl": cloudinary_url,
-            "cloudinaryUrl": cloudinary_url,
-            "cloudinaryPublicId": cloudinary_public_id,
+        if not allowed:
+            cleanup_cloudinary(cloudinary_public_id)
+            cleanup_local_file(dest_path)
 
-            # Local copy for the current processing pipeline
-            "filePath": str(dest_path),
+            mark_failed(
+                "validation",
+                error_response.get("error", "Duration limit exceeded."),
+            )
 
-            "originalFileName": uploaded_file.name,
-            "fileType": file_type,
-            "fileSize": uploaded_file.size,
-            "duration": duration_seconds,
-            "language": "English",
-            "status": "processing",
-            "speakerCount": 0,
-            "createdAt": now,
-            "completedAt": None,
-        }
+            return Response(
+                {
+                    **error_response,
+                    "meetingId": meeting_id,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        duration_seconds = int(round(duration_seconds))
+
+        # 9. Update meeting details.
+
+        meetings_col.update_one(
+            {"_id": meeting_id},
+            {
+                "$set": {
+                    "fileUrl": cloudinary_url,
+                    "cloudinaryUrl": cloudinary_url,
+                    "cloudinaryPublicId": cloudinary_public_id,
+                    "duration": duration_seconds,
+                    "status": "processing",
+                    "failureStage": None,
+                    "failureReason": None,
+                    "failedAt": None,
+                }
+            },
+        )
+
+        # 10. Create the processing job.
 
         try:
-            get_collection("meetings").insert_one(meeting_doc)
-
             get_collection("processing_jobs").insert_one({
                 "_id": str(ObjectId()),
                 "meetingId": meeting_id,
@@ -304,36 +588,26 @@ class MeetingListCreateView(APIView):
                 "status": "processing",
                 "currentStage": "EXTRACTING_AUDIO",
                 "progress": 15,
-                "startedAt": now,
+                "startedAt": datetime.utcnow().isoformat(),
                 "completedAt": None,
                 "error": None,
             })
 
         except Exception as exc:
-            print("MongoDB save error:", str(exc))
+            print("Processing job creation error:", str(exc))
 
-            try:
-                cloudinary.uploader.destroy(
-                    cloudinary_public_id,
-                    resource_type="video",
-                )
-            except Exception as cleanup_error:
-                print("Cloudinary cleanup error:", str(cleanup_error))
-
-            try:
-                dest_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            reason = "Could not create the processing job."
+            mark_failed("processing_initialization", reason)
 
             return Response(
                 {
-                    "error": (
-                        "The recording was uploaded, but its meeting "
-                        "record could not be saved."
-                    )
+                    "error": reason,
+                    "meetingId": meeting_id,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        # 11. Start the processing pipeline.
 
         try:
             thread = threading.Thread(
@@ -341,43 +615,35 @@ class MeetingListCreateView(APIView):
                 args=(meeting_id, True),
                 daemon=True,
             )
+
             thread.start()
 
         except Exception as exc:
             print("Processing start error:", str(exc))
 
-            get_collection("meetings").update_one(
-                {"_id": meeting_id},
-                {"$set": {"status": "failed"}},
-            )
-
-            get_collection("processing_jobs").update_one(
-                {"meetingId": meeting_id},
-                {
-                    "$set": {
-                        "status": "failed",
-                        "error": "Could not start processing.",
-                    }
-                },
-            )
+            reason = "Could not start the processing pipeline."
+            mark_failed("processing_initialization", reason)
 
             return Response(
-                make_json_safe({
-                    "message": (
-                        "Recording stored successfully, but processing "
-                        "could not be started."
-                    ),
-                    "meeting": meeting_doc,
-                    "jobId": meeting_id,
-                }),
-                status=status.HTTP_201_CREATED,
+                {
+                    "error": reason,
+                    "meetingId": meeting_id,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        meeting_doc.update({
+            "fileUrl": cloudinary_url,
+            "cloudinaryUrl": cloudinary_url,
+            "cloudinaryPublicId": cloudinary_public_id,
+            "filePath": str(dest_path),
+            "duration": duration_seconds,
+            "status": "processing",
+        })
 
         return Response(
             make_json_safe({
-                "message": (
-                    "Recording uploaded to Cloudinary. Processing started."
-                ),
+                "message": "Recording uploaded. Processing started.",
                 "meeting": meeting_doc,
                 "jobId": meeting_id,
             }),
@@ -385,30 +651,30 @@ class MeetingListCreateView(APIView):
         )
 
 
+# ---------------------------------------------------------
+# MEETING DETAILS, UPDATE AND DELETE
+# ---------------------------------------------------------
+
 class MeetingDetailView(APIView):
-    """
-    GET    /api/meetings/<meeting_id>/ -> meeting details.
-    PATCH  /api/meetings/<meeting_id>/ -> update meeting metadata.
-    DELETE /api/meetings/<meeting_id>/ -> delete meeting and related records.
-    """
 
-    permission_classes = [AllowAny]
-
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, meeting_id):
-        meetings_col = get_collection("meetings")
-        meeting = meetings_col.find_one({"_id": meeting_id})
+        meeting, error_response = get_meeting_or_response(
+            meeting_id,
+            request.user,
+        )
 
-        if not meeting:
-            return Response(
-                {"error": "Meeting not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        if error_response:
+            return error_response
 
-        speakers = list(
-            get_collection("speakers")
-            .find({"meetingId": meeting_id})
-            .sort("label", 1)
+        # Fetch related collections without cursor chaining.
+
+        speakers = get_sorted_documents(
+            "speakers",
+            {"meetingId": meeting_id},
+            sort_field="label",
+            descending=False,
         )
 
         analysis = (
@@ -417,11 +683,12 @@ class MeetingDetailView(APIView):
             ) or {}
         )
 
-        segments = list(
-            get_collection("transcript_segments")
-            .find({"meetingId": meeting_id})
-            .sort("startTime", 1)
-            .limit(100)
+        segments = get_sorted_documents(
+            "transcript_segments",
+            {"meetingId": meeting_id},
+            sort_field="startTime",
+            descending=False,
+            limit=100,
         )
 
         job = get_collection("processing_jobs").find_one(
@@ -437,7 +704,8 @@ class MeetingDetailView(APIView):
         if not action_items:
             action_items = analysis.get("actionItems", [])
 
-        # Support common field names used by different analysis outputs.
+        # Normalize deadlines.
+
         raw_deadlines = (
             analysis.get("deadlines")
             or analysis.get("extractedDeadlines")
@@ -447,7 +715,7 @@ class MeetingDetailView(APIView):
         deadlines = []
 
         for index, item in enumerate(raw_deadlines):
-            # Handle either structured deadline objects or plain text.
+
             if isinstance(item, str):
                 deadlines.append({
                     "id": str(index),
@@ -497,7 +765,6 @@ class MeetingDetailView(APIView):
                 ),
             })
 
-        # Convert action-item records to a list of JSON-safe dictionaries.
         response_data = {
             "id": str(meeting["_id"]),
             "_id": str(meeting["_id"]),
@@ -505,8 +772,12 @@ class MeetingDetailView(APIView):
             "title": meeting.get("title"),
             "fileUrl": meeting.get("fileUrl", ""),
             "cloudinaryUrl": meeting.get("cloudinaryUrl", ""),
-            "cloudinaryPublicId": meeting.get("cloudinaryPublicId", ""),
-            "originalFileName": meeting.get("originalFileName", ""),
+            "cloudinaryPublicId": meeting.get(
+                "cloudinaryPublicId", ""
+            ),
+            "originalFileName": meeting.get(
+                "originalFileName", ""
+            ),
             "fileType": meeting.get("fileType", "video"),
             "fileSize": meeting.get("fileSize", 0),
             "duration": meeting.get("duration", 0),
@@ -516,10 +787,14 @@ class MeetingDetailView(APIView):
             "language": meeting.get("language", "English"),
             "status": meeting.get("status", "processing"),
             "speakerCount": meeting.get(
-                "speakerCount", len(speakers)
+                "speakerCount",
+                len(speakers),
             ),
             "createdAt": meeting.get("createdAt"),
             "completedAt": meeting.get("completedAt"),
+            "failureStage": meeting.get("failureStage"),
+            "failureReason": meeting.get("failureReason"),
+            "failedAt": meeting.get("failedAt"),
             "speakers": speakers,
             "summary": analysis.get("summary", ""),
             "keyPoints": analysis.get("keyPoints", []),
@@ -531,7 +806,9 @@ class MeetingDetailView(APIView):
             ),
             "deadlines": deadlines,
             "questions": analysis.get("questions", []),
-            "unresolvedIssues": analysis.get("unresolvedIssues", []),
+            "unresolvedIssues": analysis.get(
+                "unresolvedIssues", []
+            ),
             "risks": analysis.get("risks", []),
             "actionItems": action_items,
             "transcriptSegments": segments,
@@ -540,16 +817,14 @@ class MeetingDetailView(APIView):
 
         return Response(make_json_safe(response_data))
 
-
     def patch(self, request, meeting_id):
-        meetings_col = get_collection("meetings")
-        meeting = meetings_col.find_one({"_id": meeting_id})
+        meeting, error_response = get_meeting_or_response(
+            meeting_id,
+            request.user,
+        )
 
-        if not meeting:
-            return Response(
-                {"error": "Meeting not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        if error_response:
+            return error_response
 
         updates = {}
 
@@ -567,32 +842,29 @@ class MeetingDetailView(APIView):
         if "language" in request.data:
             updates["language"] = request.data["language"]
 
-        if "userId" in request.data:
-            updates["userId"] = request.data["userId"]
+        # Never allow the client to modify userId.
 
         if updates:
-            meetings_col.update_one(
+            get_collection("meetings").update_one(
                 {"_id": meeting_id},
                 {"$set": updates},
             )
 
-        updated_meeting = meetings_col.find_one(
+        updated_meeting = get_collection("meetings").find_one(
             {"_id": meeting_id}
         )
 
         return Response(make_json_safe(updated_meeting))
 
     def delete(self, request, meeting_id):
-        meetings_col = get_collection("meetings")
-        meeting = meetings_col.find_one({"_id": meeting_id})
+        meeting, error_response = get_meeting_or_response(
+            meeting_id,
+            request.user,
+        )
 
-        if not meeting:
-            return Response(
-                {"error": "Meeting not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        if error_response:
+            return error_response
 
-        # Attempt to remove the Cloudinary asset.
         cloudinary_public_id = meeting.get("cloudinaryPublicId")
 
         if cloudinary_public_id:
@@ -606,8 +878,9 @@ class MeetingDetailView(APIView):
                     print("Cloudinary deletion result:", result)
 
             except Exception as exc:
-                # Continue deleting database records, but log the failure.
                 print("Cloudinary deletion error:", str(exc))
+
+        # Delete related records.
 
         related_collections = (
             "transcript_segments",
@@ -623,47 +896,62 @@ class MeetingDetailView(APIView):
                 {"meetingId": meeting_id}
             )
 
-        meetings_col.delete_one({"_id": meeting_id})
-
-        # Remove the local processing copy if it exists.
-        file_path = meeting.get("filePath")
-
-        if file_path and os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except OSError as exc:
-                print("Local file deletion error:", str(exc))
-
-        return Response({
-            "message": (
-                "Meeting and associated records deleted. "
-                "Cloudinary cleanup was attempted."
-            )
-        })
-
-
-class MeetingProcessView(APIView):
-    """POST /api/meetings/<meeting_id>/process/ -> start/retry processing."""
-
-    permission_classes = [AllowAny]
-
-    def post(self, request, meeting_id):
-        meeting = get_collection("meetings").find_one(
+        get_collection("meetings").delete_one(
             {"_id": meeting_id}
         )
 
-        if not meeting:
-            return Response(
-                {"error": "Meeting not found."},
-                status=status.HTTP_404_NOT_FOUND,
+        cleanup_local_file(meeting.get("filePath"))
+
+        return Response({
+            "message": "Meeting and associated records deleted."
+        })
+
+
+# ---------------------------------------------------------
+# RETRY PROCESSING
+# ---------------------------------------------------------
+
+class MeetingProcessView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, meeting_id):
+        meeting, error_response = get_meeting_or_response(
+            meeting_id,
+            request.user,
+        )
+
+        if error_response:
+            return error_response
+
+        get_collection("meetings").update_one(
+            {"_id": meeting_id},
+            {
+                "$set": {
+                    "status": "processing",
+                    "failureStage": None,
+                    "failureReason": None,
+                    "failedAt": None,
+                }
+            },
+        )
+
+        try:
+            thread = threading.Thread(
+                target=PipelineProcessor.process_meeting,
+                args=(meeting_id, True),
+                daemon=True,
             )
 
-        thread = threading.Thread(
-            target=PipelineProcessor.process_meeting,
-            args=(meeting_id, True),
-            daemon=True,
-        )
-        thread.start()
+            thread.start()
+
+        except Exception as exc:
+            print("Processing retry error:", str(exc))
+
+            return Response(
+                {"error": "Could not start processing."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response({
             "message": "Processing pipeline initiated.",
@@ -671,33 +959,39 @@ class MeetingProcessView(APIView):
         })
 
 
-class MeetingStatusView(APIView):
-    """GET /api/meetings/<meeting_id>/status/ -> processing status."""
+# ---------------------------------------------------------
+# PROCESSING STATUS
+# ---------------------------------------------------------
 
-    permission_classes = [AllowAny]
+class MeetingStatusView(APIView):
+
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, meeting_id):
+        meeting, error_response = get_meeting_or_response(
+            meeting_id,
+            request.user,
+        )
+
+        if error_response:
+            return error_response
+
         job = get_collection("processing_jobs").find_one(
             {"meetingId": meeting_id}
         )
 
         if not job:
-            meeting = get_collection("meetings").find_one(
-                {"_id": meeting_id}
-            )
-
-            if not meeting:
-                return Response(
-                    {"error": "Meeting not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
             return Response(make_json_safe({
                 "meetingId": meeting_id,
                 "status": meeting.get("status", "unknown"),
+                "failureStage": meeting.get("failureStage"),
+                "failureReason": meeting.get("failureReason"),
+                "failedAt": meeting.get("failedAt"),
                 "currentStage": "UNKNOWN",
                 "progress": (
-                    100 if meeting.get("status") == "completed" else 0
+                    100
+                    if meeting.get("status") == "completed"
+                    else 0
                 ),
             }))
 
@@ -709,4 +1003,7 @@ class MeetingStatusView(APIView):
             "startedAt": job.get("startedAt"),
             "completedAt": job.get("completedAt"),
             "error": job.get("error"),
+            "failureStage": meeting.get("failureStage"),
+            "failureReason": meeting.get("failureReason"),
+            "failedAt": meeting.get("failedAt"),
         }))

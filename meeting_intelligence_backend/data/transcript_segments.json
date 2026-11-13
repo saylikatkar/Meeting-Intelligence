@@ -119,5 +119,137 @@
     "speakerId": "spk_001",
     "speakerLabel": "SPEAKER_1",
     "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e3",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 1,
+    "startTime": 0,
+    "endTime": 10.88,
+    "text": "Good evening and welcome to the Tuesday, November 15th, 2022 Manistee City Council organizational meeting. Please stand for the Pledge of Allegiance.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e4",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 2,
+    "startTime": 13.12,
+    "endTime": 25.32,
+    "text": "I pledge allegiance to the flag of the United States of America and to the republic for which it stands, one nation, under God, indivisible, with liberty and justice for all.",
+    "speakerId": "6aeb775b4441e92df344a8e1",
+    "speakerLabel": "SPEAKER_2",
+    "speakerName": "Rahul"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e5",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 3,
+    "startTime": 30,
+    "endTime": 45.56,
+    "text": "In accordance with Section 2-13 of the Charter of the City of Manistee, the City Council shall meet at 7.30 on the Tuesday night following the completion of the official canvas, at which time the members shall be sworn and assume the duties of their office.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e6",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 4,
+    "startTime": 45.56,
+    "endTime": 53.96,
+    "text": "At the regular election of Tuesday, November 8, 2022, Council members were elected to seats of the Manistee City Council.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e7",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 5,
+    "startTime": 53.96,
+    "endTime": 73.59,
+    "text": "Members include 1st District David Bachman 2 term 3rd District Cindy Lundberg 2 term 5th District Seth Pratt 2 term and 7th District Aaron Martin Pontiac 2 term If the four of you would please stand I will now administer the oath",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e8",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 6,
+    "startTime": 82.51,
+    "endTime": 90.23,
+    "text": "Please raise your right hand and repeat after me. I do solemnly swear that I will support the",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8e9",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 7,
+    "startTime": 90.23,
+    "endTime": 99.15,
+    "text": "Constitution of the United States, the Constitution of this state, and the",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8ea",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 8,
+    "startTime": 99.15,
+    "endTime": 100.99,
+    "text": "of the city of Manistee.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8eb",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 9,
+    "startTime": 100.99,
+    "endTime": 107.99,
+    "text": "I do further swear that I will faithfully perform the duties",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8ec",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 10,
+    "startTime": 107.99,
+    "endTime": 115.33,
+    "text": "of the Office of City Council for the City of Manistee,",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8ed",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 11,
+    "startTime": 115.33,
+    "endTime": 116.43,
+    "text": "State of Michigan.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
+  },
+  {
+    "_id": "6aeb775b4441e92df344a8ee",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "segmentNumber": 12,
+    "startTime": 129.15,
+    "endTime": 148.41,
+    "text": "Thank you.",
+    "speakerId": "6aeb775b4441e92df344a8e0",
+    "speakerLabel": "SPEAKER_1",
+    "speakerName": "Ayush"
   }
 ]

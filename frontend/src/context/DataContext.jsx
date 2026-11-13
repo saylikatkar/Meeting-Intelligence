@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -5,8 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { useAuth } from "./AuthContext";
 import * as mock from "../data/mockData";
+
 import {
   addDays,
   buildActionTasks,
@@ -14,11 +17,18 @@ import {
   buildTranscript,
   processingStages,
 } from "../utils/meetingContent";
+
 import api from "../services/api";
+import { getMyEntitlements } from "../services/subscriptionApi";
 
 const DataContext = createContext(null);
+
 const STORAGE_KEY = "meetingintel-data";
 const SIMULATION_MS = 3000;
+
+// --------------------------------------------------
+// INITIAL DATA
+// --------------------------------------------------
 
 function seedActions() {
   const statuses = ["in progress", "pending", "completed"];
@@ -54,16 +64,24 @@ function loadData() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
     if (saved) {
-      const settings = { ...mock.defaultSettings, ...saved.settings };
+      const settings = {
+        ...mock.defaultSettings,
+        ...saved.settings,
+      };
+
       delete settings.managerPermissions;
 
       const demoIds = new Set(
-        mock.users.filter((u) => u.password).map((u) => u.id)
+        mock.users
+          .filter((u) => u.password)
+          .map((u) => u.id)
       );
 
       const users = (saved.users || mock.users)
         .map((u) =>
-          u.role === "manager" ? { ...u, role: "member" } : u
+          u.role === "manager"
+            ? { ...u, role: "member" }
+            : u
         )
         .map((u) =>
           demoIds.has(u.id) && !u.password
@@ -77,13 +95,13 @@ function loadData() {
           .map((m) => m.id)
       );
 
-      const meetings = (saved.meetings || mock.meetings).filter(
-        (m) => !removed.has(m.id)
-      );
+      const meetings = (
+        saved.meetings || mock.meetings
+      ).filter((m) => !removed.has(m.id));
 
-      const actions = (saved.actions || seedActions()).filter(
-        (a) => !removed.has(a.meetingId)
-      );
+      const actions = (
+        saved.actions || seedActions()
+      ).filter((a) => !removed.has(a.meetingId));
 
       const data = {
         ...initialData(),
@@ -109,7 +127,9 @@ function loadData() {
 
 function withJobDetails(meetings, jobs = []) {
   return meetings.map((meeting) => {
-    const job = jobs.find((j) => j.meetingId === meeting.id);
+    const job = jobs.find(
+      (j) => j.meetingId === meeting.id
+    );
 
     if (!job || meeting.status === "completed") {
       return meeting;
@@ -135,6 +155,10 @@ function newId(prefix) {
     .toString(36)
     .slice(2, 5)}`;
 }
+
+// --------------------------------------------------
+// SAMPLE MEETINGS
+// --------------------------------------------------
 
 const sampleMeetings = [
   {
@@ -206,7 +230,10 @@ function sampleDataFor(
         } else {
           meeting.example = true;
           meeting.stage = stage;
-          if (error) meeting.error = error;
+
+          if (error) {
+            meeting.error = error;
+          }
         }
 
         meetings.push(meeting);
@@ -261,7 +288,12 @@ function addMissingSamples(data) {
       actions = [...samples.actions, ...actions];
     });
 
-  return { ...data, meetings, actions, samplesVersion: 3 };
+  return {
+    ...data,
+    meetings,
+    actions,
+    samplesVersion: 3,
+  };
 }
 
 function actionsFor(meeting) {
@@ -277,6 +309,10 @@ function actionsFor(meeting) {
   }));
 }
 
+// --------------------------------------------------
+// SIMULATED MEETING PROCESSING
+// --------------------------------------------------
+
 function isSimulating(meeting) {
   return (
     meeting.simulated &&
@@ -290,12 +326,19 @@ function advanceMeetings(prev) {
   const meetings = prev.meetings.map((meeting) => {
     if (!isSimulating(meeting)) return meeting;
 
-    const currentStage = processingStages.indexOf(meeting.stage);
+    const currentStage = processingStages.indexOf(
+      meeting.stage
+    );
+
     const next =
       processingStages[currentStage + 1] || "Done";
 
     if (next !== "Done") {
-      return { ...meeting, stage: next, status: "processing" };
+      return {
+        ...meeting,
+        stage: next,
+        status: "processing",
+      };
     }
 
     const done = {
@@ -308,7 +351,11 @@ function advanceMeetings(prev) {
         meeting.transcript || buildTranscript(meeting),
     };
 
-    if (!actions.some((action) => action.meetingId === done.id)) {
+    if (
+      !actions.some(
+        (action) => action.meetingId === done.id
+      )
+    ) {
       actions = [...actionsFor(done), ...actions];
     }
 
@@ -332,7 +379,10 @@ function advanceMeetings(prev) {
   return { ...prev, meetings, actions, users };
 }
 
-// Convert the Django meeting response into the format used by the UI.
+// --------------------------------------------------
+// NORMALIZE BACKEND RESPONSES
+// --------------------------------------------------
+
 function normalizeMeeting(meeting) {
   const seconds = Number(meeting.duration || 0);
   const rawStatus = String(meeting.status || "").toLowerCase();
@@ -362,14 +412,18 @@ function normalizeMeeting(meeting) {
   };
 }
 
-
 function normalizeAction(action = {}) {
   const rawStatus = String(action.status || "pending")
     .toLowerCase()
     .replaceAll("_", " ")
     .replaceAll("-", " ");
 
-  const rawDue = action.calendarDate || action.deadline || action.due || "";
+  const rawDue =
+    action.calendarDate ||
+    action.deadline ||
+    action.due ||
+    "";
+
   const due = /^\d{4}-\d{2}-\d{2}/.test(String(rawDue))
     ? String(rawDue).slice(0, 10)
     : rawDue;
@@ -377,16 +431,30 @@ function normalizeAction(action = {}) {
   return {
     ...action,
     id: String(action._id || action.id || ""),
-    meetingId: String(action.meetingId || action.meeting_id || ""),
-    ownerId: String(action.userId || action.ownerId || ""),
-    task: action.task || action.title || action.description || "Untitled task",
-    status: rawStatus === "in progress" ? "in progress" : rawStatus,
+    meetingId: String(
+      action.meetingId || action.meeting_id || ""
+    ),
+    ownerId: String(
+      action.userId || action.ownerId || ""
+    ),
+    task:
+      action.task ||
+      action.title ||
+      action.description ||
+      "Untitled task",
+    status:
+      rawStatus === "in progress"
+        ? "in progress"
+        : rawStatus,
     assignee: action.assignee || "Unassigned",
     priority: String(action.priority || "medium").toLowerCase(),
     due: due || "TBD",
   };
 }
 
+// --------------------------------------------------
+// DATA PROVIDER
+// --------------------------------------------------
 
 export function DataProvider({ children }) {
   const { user } = useAuth();
@@ -395,11 +463,58 @@ export function DataProvider({ children }) {
 
   const [apiMeetings, setApiMeetings] = useState([]);
   const [apiActions, setApiActions] = useState([]);
+
   const [meetingsLoaded, setMeetingsLoaded] = useState(false);
   const [actionsLoaded, setActionsLoaded] = useState(false);
+
   const [apiError, setApiError] = useState("");
 
-  // Fetch real meeting and action data after login.
+  // Subscription entitlements.
+  const [entitlements, setEntitlements] = useState(null);
+  const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
+  const [entitlementsError, setEntitlementsError] = useState("");
+
+  // Refresh subscription entitlements.
+  async function refreshEntitlements() {
+    if (!user) {
+      setEntitlements(null);
+      setEntitlementsLoaded(false);
+      setEntitlementsError("");
+      return null;
+    }
+
+    setEntitlementsLoaded(false);
+    setEntitlementsError("");
+
+    try {
+      const result = await getMyEntitlements();
+
+      setEntitlements(result);
+      setEntitlementsError("");
+
+      return result;
+    } catch (error) {
+      console.error(
+        "Subscription entitlements API failed:",
+        error.response?.data || error.message
+      );
+
+      setEntitlements(null);
+
+      setEntitlementsError(
+        error.response?.data?.error ||
+          error.response?.data?.detail ||
+          error.message ||
+          "Could not load subscription information."
+      );
+
+      return null;
+    } finally {
+      setEntitlementsLoaded(true);
+    }
+  }
+
+  // Fetch meetings and actions after login.
   useEffect(() => {
     if (!user) {
       setApiMeetings([]);
@@ -426,7 +541,9 @@ export function DataProvider({ children }) {
           : payload.meetings || payload.results || [];
 
         if (!Array.isArray(meetings)) {
-          throw new Error("The meetings API did not return a list.");
+          throw new Error(
+            "The meetings API did not return a list."
+          );
         }
 
         if (!cancelled) {
@@ -441,12 +558,14 @@ export function DataProvider({ children }) {
 
         if (!cancelled) {
           setApiMeetings([]);
+
           setApiError(
             error.response?.data?.message ||
               error.response?.data?.error ||
               error.message ||
               "Could not load meetings from the backend."
           );
+
           setMeetingsLoaded(true);
         }
       }
@@ -455,13 +574,17 @@ export function DataProvider({ children }) {
         const response = await api.get("/actions/");
         const payload = response.data;
 
-        // The backend returns { stats, items }, not { actions }.
         const actions = Array.isArray(payload)
           ? payload
-          : payload.items || payload.actions || payload.results || [];
+          : payload.items ||
+            payload.actions ||
+            payload.results ||
+            [];
 
         if (!Array.isArray(actions)) {
-          throw new Error("The actions API did not return a list.");
+          throw new Error(
+            "The actions API did not return a list."
+          );
         }
 
         if (!cancelled) {
@@ -488,12 +611,66 @@ export function DataProvider({ children }) {
     };
   }, [user?.email]);
 
-  // Keep the existing local demo data for other pages and features.
+  // Fetch subscription entitlements after login.
+  useEffect(() => {
+    if (!user) {
+      setEntitlements(null);
+      setEntitlementsLoaded(false);
+      setEntitlementsError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchEntitlements() {
+      setEntitlementsLoaded(false);
+      setEntitlementsError("");
+
+      try {
+        const result = await getMyEntitlements();
+
+        if (!cancelled) {
+          setEntitlements(result);
+          setEntitlementsError("");
+          setEntitlementsLoaded(true);
+        }
+      } catch (error) {
+        console.error(
+          "Subscription entitlements API failed:",
+          error.response?.data || error.message
+        );
+
+        if (!cancelled) {
+          setEntitlements(null);
+
+          setEntitlementsError(
+            error.response?.data?.error ||
+              error.response?.data?.detail ||
+              error.message ||
+              "Could not load subscription information."
+          );
+
+          setEntitlementsLoaded(true);
+        }
+      }
+    }
+
+    fetchEntitlements();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
+
+  // Keep existing local demo data.
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(data)
+      );
     } catch {
-      // Local changes remain available in memory if storage is blocked.
+      // Local changes remain available in memory.
     }
   }, [data]);
 
@@ -503,14 +680,24 @@ export function DataProvider({ children }) {
     user?.role === "member" &&
     !data.users.some(
       (item) =>
-        item.email?.toLowerCase() === user.email?.toLowerCase()
+        item.email?.toLowerCase() ===
+        user.email?.toLowerCase()
     );
 
   useEffect(() => {
-    if (!needsAccount || provisioned.current.has(user.email)) return;
+    if (
+      !needsAccount ||
+      provisioned.current.has(user.email)
+    ) {
+      return;
+    }
 
     provisioned.current.add(user.email);
-    createMember({ name: user.name, email: user.email });
+
+    createMember({
+      name: user.name,
+      email: user.email,
+    });
   }, [needsAccount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isProcessing = data.meetings.some(isSimulating);
@@ -526,10 +713,21 @@ export function DataProvider({ children }) {
     return () => clearInterval(timer);
   }, [isProcessing]);
 
-  function makeLog(source, message, level = "info", actor) {
+  // --------------------------------------------------
+  // DATA MANAGEMENT FUNCTIONS
+  // --------------------------------------------------
+
+  function makeLog(
+    source,
+    message,
+    level = "info",
+    actor
+  ) {
     const by =
       actor ||
-      (user ? `${user.name} (${user.role})` : "system");
+      (user
+        ? `${user.name} (${user.role})`
+        : "system");
 
     return {
       id: newId("log"),
@@ -553,7 +751,10 @@ export function DataProvider({ children }) {
   }
 
   function patch(change) {
-    setData((prev) => ({ ...prev, ...change(prev) }));
+    setData((prev) => ({
+      ...prev,
+      ...change(prev),
+    }));
   }
 
   function addLog(source, message, level, actor) {
@@ -616,8 +817,14 @@ export function DataProvider({ children }) {
       message || `Created member account ${email}`,
       (prev) => ({
         users: [account, ...prev.users],
-        meetings: [...samples.meetings, ...prev.meetings],
-        actions: [...samples.actions, ...prev.actions],
+        meetings: [
+          ...samples.meetings,
+          ...prev.meetings,
+        ],
+        actions: [
+          ...samples.actions,
+          ...prev.actions,
+        ],
       })
     );
 
@@ -628,15 +835,23 @@ export function DataProvider({ children }) {
     const samples = sampleDataFor(account);
 
     patch((prev) => ({
-      meetings: [...samples.meetings, ...prev.meetings],
-      actions: [...samples.actions, ...prev.actions],
+      meetings: [
+        ...samples.meetings,
+        ...prev.meetings,
+      ],
+      actions: [
+        ...samples.actions,
+        ...prev.actions,
+      ],
     }));
   }
 
   function updateUser(id, changes, message) {
     update("users", message, (prev) => ({
       users: prev.users.map((item) =>
-        item.id === id ? { ...item, ...changes } : item
+        item.id === id
+          ? { ...item, ...changes }
+          : item
       ),
     }));
   }
@@ -646,13 +861,18 @@ export function DataProvider({ children }) {
       "users",
       message,
       (prev) => ({
-        users: prev.users.filter((item) => item.id !== id),
+        users: prev.users.filter(
+          (item) => item.id !== id
+        ),
       }),
       "warning"
     );
   }
 
-  function uploadMeeting(owner, { title, fileName, sizeMb, duration }) {
+  function uploadMeeting(
+    owner,
+    { title, fileName, sizeMb, duration }
+  ) {
     const meeting = {
       id: newId("m"),
       title,
@@ -672,7 +892,9 @@ export function DataProvider({ children }) {
     update(
       "meetings",
       `${owner.email} uploaded '${title}' (${fileName}, ${sizeMb} MB)`,
-      (prev) => ({ meetings: [meeting, ...prev.meetings] })
+      (prev) => ({
+        meetings: [meeting, ...prev.meetings],
+      })
     );
 
     return meeting;
@@ -681,18 +903,19 @@ export function DataProvider({ children }) {
   function updateMeeting(id, changes) {
     patch((prev) => ({
       meetings: prev.meetings.map((meeting) =>
-        meeting.id === id ? { ...meeting, ...changes } : meeting
+        meeting.id === id
+          ? { ...meeting, ...changes }
+          : meeting
       ),
     }));
   }
 
-
   async function deleteMeeting(id, message) {
     try {
-      // First delete the meeting from the Django backend.
-      await api.delete(`/meetings/${encodeURIComponent(id)}/`);
+      await api.delete(
+        `/meetings/${encodeURIComponent(id)}/`
+      );
 
-      // Only update the UI after the backend confirms deletion.
       setApiMeetings((previousMeetings) =>
         previousMeetings.filter(
           (meeting) => meeting.id !== String(id)
@@ -705,7 +928,8 @@ export function DataProvider({ children }) {
         )
       );
 
-      // Keep the local demo data and activity log in sync.
+      await refreshEntitlements();
+
       update(
         "meetings",
         message || `Deleted meeting ${id}`,
@@ -731,9 +955,10 @@ export function DataProvider({ children }) {
     }
   }
 
-
   function reprocessMeeting(id) {
-    const meeting = data.meetings.find((item) => item.id === id);
+    const meeting = data.meetings.find(
+      (item) => item.id === id
+    );
 
     if (!meeting) return;
 
@@ -756,6 +981,10 @@ export function DataProvider({ children }) {
     );
   }
 
+  // --------------------------------------------------
+  // ACTION ITEMS
+  // --------------------------------------------------
+
   async function addAction(action) {
     const payload = {
       task: action.task,
@@ -768,71 +997,166 @@ export function DataProvider({ children }) {
     };
 
     try {
-      const response = await api.post("/actions/", payload);
+      const response = await api.post(
+        "/actions/",
+        payload
+      );
+
       const body = response.data;
-      const savedAction = body?.item || body?.action || body?.data || body;
-      if (!savedAction || typeof savedAction !== "object") {
-        throw new Error("The server did not return the saved action item.");
+
+      const savedAction =
+        body?.item ||
+        body?.action ||
+        body?.data ||
+        body;
+
+      if (
+        !savedAction ||
+        typeof savedAction !== "object"
+      ) {
+        throw new Error(
+          "The server did not return the saved action item."
+        );
       }
 
       const normalized = normalizeAction(savedAction);
+
       if (!normalized.id) {
-        // Refetch the collection if the POST response only contains a success message.
         const refreshed = await api.get("/actions/");
+
         const rows = Array.isArray(refreshed.data)
           ? refreshed.data
-          : refreshed.data?.items || refreshed.data?.actions || refreshed.data?.results || [];
-        setApiActions(Array.isArray(rows) ? rows.map(normalizeAction) : []);
+          : refreshed.data?.items ||
+            refreshed.data?.actions ||
+            refreshed.data?.results ||
+            [];
+
+        setApiActions(
+          Array.isArray(rows)
+            ? rows.map(normalizeAction)
+            : []
+        );
+
         return normalized;
       }
 
-      setApiActions((previous) => [normalized, ...previous.filter((item) => item.id !== normalized.id)]);
+      setApiActions((previous) => [
+        normalized,
+        ...previous.filter(
+          (item) => item.id !== normalized.id
+        ),
+      ]);
+
       return normalized;
     } catch (error) {
-      console.error("Adding action failed:", error.response?.data || error.message);
+      console.error(
+        "Adding action failed:",
+        error.response?.data || error.message
+      );
+
       throw error;
     }
   }
 
   async function updateAction(id, changes) {
     const payload = {};
-    if (changes.status !== undefined) payload.status = changes.status;
-    if (changes.task !== undefined) payload.task = changes.task;
-    if (changes.assignee !== undefined) payload.assignee = changes.assignee;
+
+    if (changes.status !== undefined) {
+      payload.status = changes.status;
+    }
+
+    if (changes.task !== undefined) {
+      payload.task = changes.task;
+    }
+
+    if (changes.assignee !== undefined) {
+      payload.assignee = changes.assignee;
+    }
+
     if (changes.due !== undefined) {
       payload.deadline = changes.due;
       payload.calendarDate = changes.due;
     }
 
     try {
-      const response = await api.patch(`/actions/${encodeURIComponent(id)}/`, payload);
-      const body = response.data;
-      const returned = body?.item || body?.action || body?.data || body;
+      const response = await api.patch(
+        `/actions/${encodeURIComponent(id)}/`,
+        payload
+      );
 
-      setApiActions((previous) => previous.map((item) => {
-        if (String(item.id) !== String(id)) return item;
-        if (!returned || typeof returned !== "object" || (!returned._id && !returned.id && !returned.task && !returned.status)) {
-          return normalizeAction({ ...item, ...changes });
-        }
-        return normalizeAction({ ...item, ...returned, ...changes });
-      }));
+      const body = response.data;
+
+      const returned =
+        body?.item ||
+        body?.action ||
+        body?.data ||
+        body;
+
+      setApiActions((previous) =>
+        previous.map((item) => {
+          if (String(item.id) !== String(id)) {
+            return item;
+          }
+
+          if (
+            !returned ||
+            typeof returned !== "object" ||
+            (!returned._id &&
+              !returned.id &&
+              !returned.task &&
+              !returned.status)
+          ) {
+            return normalizeAction({
+              ...item,
+              ...changes,
+            });
+          }
+
+          return normalizeAction({
+            ...item,
+            ...returned,
+            ...changes,
+          });
+        })
+      );
+
       return true;
     } catch (error) {
-      console.error("Updating action failed:", error.response?.data || error.message);
+      console.error(
+        "Updating action failed:",
+        error.response?.data || error.message
+      );
+
       throw error;
     }
   }
 
   async function deleteAction(id) {
     try {
-      await api.delete(`/actions/${encodeURIComponent(id)}/`);
-      setApiActions((previous) => previous.filter((item) => String(item.id) !== String(id)));
+      await api.delete(
+        `/actions/${encodeURIComponent(id)}/`
+      );
+
+      setApiActions((previous) =>
+        previous.filter(
+          (item) => String(item.id) !== String(id)
+        )
+      );
+
       return true;
     } catch (error) {
-      console.error("Deleting action failed:", error.response?.data || error.message);
+      console.error(
+        "Deleting action failed:",
+        error.response?.data || error.message
+      );
+
       throw error;
     }
   }
+
+  // --------------------------------------------------
+  // SETTINGS AND LOGS
+  // --------------------------------------------------
 
   function updateStaffProfile(role, changes, message) {
     update("settings", message, (prev) => ({
@@ -847,16 +1171,22 @@ export function DataProvider({ children }) {
   }
 
   function updateSettings(settings) {
-    update("settings", "Updated system settings", () => ({
-      settings,
-    }));
+    update(
+      "settings",
+      "Updated system settings",
+      () => ({ settings })
+    );
   }
 
   function clearLogs() {
     setData((prev) => ({
       ...prev,
       logs: [
-        makeLog("system", "Cleared the activity log", "warning"),
+        makeLog(
+          "system",
+          "Cleared the activity log",
+          "warning"
+        ),
       ],
     }));
   }
@@ -865,14 +1195,23 @@ export function DataProvider({ children }) {
     setData({
       ...initialData(),
       logs: [
-        makeLog("system", "Reset all demo data", "warning"),
+        makeLog(
+          "system",
+          "Reset all demo data",
+          "warning"
+        ),
         ...mock.logs,
       ],
     });
   }
 
+  // --------------------------------------------------
+  // CONTEXT VALUE
+  // --------------------------------------------------
+
   const value = {
     ...data,
+
     addLog,
     addUser,
     createMember,
@@ -890,11 +1229,18 @@ export function DataProvider({ children }) {
     updateStaffProfile,
     clearLogs,
     resetData,
+
     apiMeetings,
     apiActions,
     meetingsLoaded,
     actionsLoaded,
     apiError,
+
+    // Subscription information.
+    entitlements,
+    entitlementsLoaded,
+    entitlementsError,
+    refreshEntitlements,
   };
 
   return (
@@ -903,6 +1249,10 @@ export function DataProvider({ children }) {
     </DataContext.Provider>
   );
 }
+
+// --------------------------------------------------
+// CUSTOM HOOKS
+// --------------------------------------------------
 
 export function useData() {
   return useContext(DataContext);
@@ -918,32 +1268,60 @@ export function useMember() {
     meetingsLoaded,
     actionsLoaded,
     apiError,
+    entitlements,
+    entitlementsLoaded,
+    entitlementsError,
+    refreshEntitlements,
   } = useData();
 
   const localAccount = users.find(
     (item) =>
-      item.email?.toLowerCase() === user?.email?.toLowerCase()
+      item.email?.toLowerCase() ===
+      user?.email?.toLowerCase()
   );
 
-  // Fall back to the authenticated backend user if no local
-  // mock account exists for that email.
-  const account = localAccount || (
-    user
-      ? {
-          ...user,
-          id: user.id || user._id,
-          meetings: user.totalMeetings || 0,
-          minutes: user.totalMinutesProcessed || 0,
-        }
-      : null
-  );
+  const baseAccount =
+    localAccount ||
+    (
+      user
+        ? {
+            ...user,
+            id: user.id || user._id,
+            meetings: user.totalMeetings || 0,
+            minutes: user.totalMinutesProcessed || 0,
+          }
+        : null
+    );
+
+  // The backend subscription is authoritative.
+  const account = baseAccount
+    ? {
+        ...baseAccount,
+        ...(entitlements && {
+          plan: entitlements.plan,
+        }),
+      }
+    : null;
 
   return {
     account,
+
     meetings: apiMeetings,
     actions: apiActions,
+
     meetingsLoaded,
     actionsLoaded,
     apiError,
+
+    // Subscription information from backend.
+    entitlements,
+    plan: entitlements?.plan || account?.plan || "free",
+    limits: entitlements?.limits || null,
+    features: entitlements?.features || null,
+    usage: entitlements?.usage || null,
+
+    entitlementsLoaded,
+    entitlementsError,
+    refreshEntitlements,
   };
 }

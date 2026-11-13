@@ -10,7 +10,11 @@
     "totalMeetings": 5,
     "totalMinutesProcessed": 384,
     "createdAt": "2026-10-01T09:00:00Z",
-    "lastLoginAt": "2026-10-28T18:04:16.234706"
+    "lastLoginAt": "2026-11-04T18:16:36.629850",
+    "$inc": {
+      "totalMeetings": 1,
+      "totalMinutesProcessed": 2
+    }
   },
   {
     "_id": "user_admin_001",

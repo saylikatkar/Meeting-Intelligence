@@ -9,5 +9,17 @@
     "startedAt": "2026-10-08T10:00:00Z",
     "completedAt": "2026-10-08T10:05:00Z",
     "error": null
+  },
+  {
+    "_id": "6aeb77504441e92df344a8df",
+    "meetingId": "6aeb76934441e92df344a8dd",
+    "userId": "user_prachi_001",
+    "status": "completed",
+    "currentStage": "COMPLETED",
+    "progress": 100,
+    "startedAt": "2026-11-04T18:20:00.620713",
+    "completedAt": "2026-11-04T18:20:13.317504",
+    "error": null,
+    "updatedAt": "2026-11-04T18:20:11.949883"
   }
 ]

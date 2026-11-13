@@ -1,14 +1,17 @@
 
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
+
 import DashboardLayout from "../../layouts/DashboardLayout";
 import Panel from "../../components/Panel";
-import { useData, useMember } from "../../context/DataContext";
+import { useMember } from "../../context/DataContext";
+
 import {
   inputClass,
   primaryButton,
   secondaryButton,
 } from "../../components/ui";
+
 import api from "../../services/api";
 
 const allowed = [
@@ -32,21 +35,27 @@ const steps = [
 
 function readDuration(file) {
   return new Promise((resolve) => {
+    const extension = file.name.split(".").pop().toLowerCase();
+
     const isVideo =
       file.type.startsWith("video/") ||
-      ["mp4", "mov", "mkv", "webm"].includes(
-        file.name.split(".").pop().toLowerCase()
-      );
+      ["mp4", "mov", "mkv", "webm"].includes(extension);
 
-    const media = document.createElement(isVideo ? "video" : "audio");
+    const media = document.createElement(
+      isVideo ? "video" : "audio"
+    );
+
     const url = URL.createObjectURL(file);
 
     media.preload = "metadata";
 
     media.onloadedmetadata = () => {
       URL.revokeObjectURL(url);
+
       resolve(
-        Number.isFinite(media.duration) ? media.duration / 60 : null
+        Number.isFinite(media.duration)
+          ? media.duration / 60
+          : null
       );
     };
 
@@ -59,9 +68,44 @@ function readDuration(file) {
   });
 }
 
+// --------------------------------------------------
+// MEETING USAGE
+// --------------------------------------------------
+
+function getMeetingUsage(meetings) {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  return meetings.filter((meeting) => {
+    const meetingDate =
+      meeting.createdAt ||
+      meeting.created_at ||
+      meeting.date ||
+      "";
+
+    // Match the backend rule: only successfully uploaded
+    // recordings with a positive duration count.
+    const duration = Number(meeting.duration || 0);
+
+    return (
+      duration > 0 &&
+      String(meetingDate).startsWith(currentMonth)
+    );
+  }).length;
+}
+
+// --------------------------------------------------
+// UPLOAD PAGE
+// --------------------------------------------------
+
 function Upload() {
-  const { settings } = useData();
-  const { meetings } = useMember();
+  const {
+    meetings,
+    limits,
+    plan,
+    entitlements,
+    entitlementsLoaded,
+    refreshEntitlements,
+  } = useMember();
 
   const inputRef = useRef(null);
 
@@ -73,24 +117,32 @@ function Upload() {
   const [uploaded, setUploaded] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  // Backend subscription limits.
+  const monthlyLimit = limits?.monthlyMeetings ?? null;
+  const maxDuration = limits?.maxDurationMinutes ?? null;
+  const maxFileSize = limits?.maxUploadSizeMB ?? null;
 
-  const usedThisMonth = meetings.filter((meeting) => {
-    if (meeting.example) return false;
+  // Count only valid uploaded recordings.
+  const usedThisMonth = getMeetingUsage(meetings);
 
-    const meetingDate =
-      meeting.date ||
-      meeting.createdAt ||
-      meeting.created_at ||
-      "";
+  // Include the newly successful upload until the meeting list
+  // is refreshed from the backend.
+  const currentUsage =
+    usedThisMonth + (uploaded ? 1 : 0);
 
-    return String(meetingDate).startsWith(thisMonth);
-  }).length;
+  const remaining =
+    monthlyLimit === null
+      ? null
+      : Math.max(0, monthlyLimit - currentUsage);
 
-  const remaining = Math.max(
-    0,
-    settings.monthlyLimit - usedThisMonth
-  );
+  const canUpload =
+    entitlementsLoaded &&
+    !!entitlements &&
+    (remaining === null || remaining > 0);
+
+  // --------------------------------------------------
+  // FILE SELECTION AND VALIDATION
+  // --------------------------------------------------
 
   async function pick(selectedFile) {
     setError("");
@@ -98,30 +150,70 @@ function Upload() {
 
     if (!selectedFile) return;
 
-    const ext = selectedFile.name.split(".").pop().toLowerCase();
+    if (!entitlementsLoaded || !entitlements) {
+      setError(
+        "Your subscription limits could not be loaded. Please refresh the page and try again."
+      );
+      return;
+    }
 
-    if (!allowed.includes(ext)) {
+    const extension = selectedFile.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+    // Validate file format.
+    if (!allowed.includes(extension)) {
+      setFile(null);
+      setDuration(null);
+
       setError(
         "Unsupported format. Choose MP3, WAV, M4A, AAC, MP4, MOV, MKV or WebM."
       );
       return;
     }
 
+    // Validate file size.
+    const fileSizeMB =
+      selectedFile.size / (1024 * 1024);
+
     if (
-      selectedFile.size >
-      settings.maxFileSizeMb * 1024 * 1024
+      maxFileSize !== null &&
+      fileSizeMB > maxFileSize
     ) {
+      setFile(null);
+      setDuration(null);
+
       setError(
-        `This file is larger than ${settings.maxFileSizeMb} MB. Choose a smaller recording.`
+        `This file is ${fileSizeMB.toFixed(1)} MB. Your ${plan} plan allows a maximum of ${maxFileSize} MB per recording.`
       );
       return;
     }
 
+    // Validate recording duration when browser metadata is available.
     const minutes = await readDuration(selectedFile);
 
-    if (minutes !== null && minutes > settings.maxMinutes) {
+    if (
+      minutes !== null &&
+      maxDuration !== null &&
+      minutes > maxDuration
+    ) {
+      setFile(null);
+      setDuration(null);
+
       setError(
-        `This recording is ${Math.round(minutes)} minutes long. The limit is ${settings.maxMinutes} minutes.`
+        `This recording is ${Math.round(minutes)} minutes long. Your ${plan} plan allows a maximum of ${maxDuration} minutes.`
+      );
+      return;
+    }
+
+    // Check monthly allowance.
+    if (remaining === 0) {
+      setFile(null);
+      setDuration(null);
+
+      setError(
+        `You've used all ${monthlyLimit} meetings allowed by your ${plan} plan this month.`
       );
       return;
     }
@@ -136,6 +228,10 @@ function Upload() {
     );
   }
 
+  // --------------------------------------------------
+  // CLEAR SELECTED FILE
+  // --------------------------------------------------
+
   function clear() {
     setFile(null);
     setDuration(null);
@@ -145,6 +241,10 @@ function Upload() {
       inputRef.current.value = "";
     }
   }
+
+  // --------------------------------------------------
+  // UPLOAD MEETING
+  // --------------------------------------------------
 
   async function handleUpload() {
     if (!file) {
@@ -157,9 +257,16 @@ function Upload() {
       return;
     }
 
+    if (!entitlementsLoaded || !entitlements) {
+      setError(
+        "Subscription information is unavailable. Please refresh and try again."
+      );
+      return;
+    }
+
     if (remaining === 0) {
       setError(
-        `You've used all ${settings.monthlyLimit} meetings for this month.`
+        `You've used all ${monthlyLimit} meetings for this month.`
       );
       return;
     }
@@ -174,7 +281,7 @@ function Upload() {
       formData.append("file", file);
       formData.append("title", title.trim());
 
-      // The backend stores duration in seconds.
+      // Backend expects duration in seconds.
       if (duration !== null) {
         formData.append(
           "duration",
@@ -182,12 +289,16 @@ function Upload() {
         );
       }
 
-      const response = await api.post("/meetings/", formData, {
-        timeout: 0,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await api.post(
+        "/meetings/",
+        formData,
+        {
+          timeout: 0,
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       const meeting = response.data?.meeting || {};
 
@@ -204,14 +315,25 @@ function Upload() {
         );
       }
 
+      // Count this upload only after the backend confirms success.
       setUploaded({
         id: meetingId,
         title: meeting.title || title.trim(),
       });
 
       clear();
+
+      // Refresh subscription information.
+      await refreshEntitlements();
+
     } catch (err) {
-      console.error("Meeting upload failed:", err);
+      console.error(
+        "Meeting upload failed:",
+        err.response?.data || err.message
+      );
+
+      // Failed uploads do not increase usage.
+      setUploaded(null);
 
       setError(
         err.response?.data?.error ||
@@ -223,6 +345,10 @@ function Upload() {
       setIsUploading(false);
     }
   }
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
 
   return (
     <DashboardLayout title="Upload">
@@ -266,7 +392,7 @@ function Upload() {
                   <input
                     ref={inputRef}
                     type="file"
-                    disabled={isUploading}
+                    disabled={isUploading || !canUpload}
                     accept=".mp3,.wav,.m4a,.aac,.mp4,.mov,.mkv,.webm,audio/*,video/*"
                     onChange={(event) =>
                       pick(event.target.files?.[0])
@@ -276,8 +402,15 @@ function Upload() {
                 </label>
 
                 <p className="text-xs text-gray-400 mt-3">
-                  Audio or video · up to {settings.maxFileSizeMb} MB
-                  · up to {settings.maxMinutes} minutes
+                  Audio or video
+                  {" · "}
+                  {maxFileSize === null
+                    ? "No file size limit"
+                    : `up to ${maxFileSize} MB`}
+                  {" · "}
+                  {maxDuration === null
+                    ? "No duration limit"
+                    : `up to ${maxDuration} minutes`}
                 </p>
               </div>
 
@@ -291,6 +424,7 @@ function Upload() {
 
                       <p className="text-xs text-gray-500">
                         {(file.size / 1024 / 1024).toFixed(1)} MB
+
                         {duration !== null
                           ? ` · ${Math.max(1, Math.round(duration))} min`
                           : " · length unknown"}
@@ -318,7 +452,9 @@ function Upload() {
                     id="meeting-title"
                     value={title}
                     disabled={isUploading}
-                    onChange={(event) => setTitle(event.target.value)}
+                    onChange={(event) =>
+                      setTitle(event.target.value)
+                    }
                     className={inputClass}
                     placeholder="Enter meeting title"
                   />
@@ -352,24 +488,33 @@ function Upload() {
                 <button
                   type="button"
                   onClick={handleUpload}
-                  disabled={!file || isUploading || remaining === 0}
+                  disabled={
+                    !file ||
+                    isUploading ||
+                    !canUpload
+                  }
                   className={`${primaryButton} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isUploading
-                    ? "Uploading to Cloudinary..."
-                    : "Upload and process"}
+                    ? "Uploading"
+                    : !entitlementsLoaded
+                      ? "Loading limits..."
+                      : remaining === 0
+                        ? "Monthly limit reached"
+                        : "Upload and process"}
                 </button>
 
                 <span className="text-xs text-gray-500">
-                  {remaining} of {settings.monthlyLimit} uploads left
-                  this month
+                  {remaining === null
+                    ? "Unlimited uploads"
+                    : `${remaining} of ${monthlyLimit} uploads left this month`}
                 </span>
               </div>
 
               {isUploading && (
                 <p className="text-xs text-gray-500 mt-3">
-                  Please keep this page open while your recording is
-                  being uploaded and saved.
+                  Please keep this page open while your recording
+                  is being uploaded and saved.
                 </p>
               )}
             </div>
@@ -399,12 +544,6 @@ function Upload() {
               </li>
             ))}
           </ol>
-
-          <p className="px-4 py-3 border-t border-gray-200 text-xs text-gray-500">
-            Recordings are stored in Cloudinary. Your backend saves
-            meeting details in MongoDB and starts the processing
-            pipeline.
-          </p>
         </Panel>
       </div>
     </DashboardLayout>

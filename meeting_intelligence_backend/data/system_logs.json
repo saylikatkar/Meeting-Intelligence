@@ -44,5 +44,157 @@
     "email": "prachi@example.com",
     "timestamp": "2026-10-29T14:37:01.776898",
     "_id": "6ae35a0d912a869147fe2809"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:08:04.982619",
+    "_id": "6aeb74844441e92df344a8c8"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:08:21.420556",
+    "_id": "6aeb74954441e92df344a8c9"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:08:22.363147",
+    "_id": "6aeb74964441e92df344a8ca"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:08:23.247155",
+    "_id": "6aeb74974441e92df344a8cb"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:08:52.259406",
+    "_id": "6aeb74b44441e92df344a8cc"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:09:03.671576",
+    "_id": "6aeb74bf4441e92df344a8cd"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:09:15.256466",
+    "_id": "6aeb74cb4441e92df344a8ce"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:09:20.539034",
+    "_id": "6aeb74d04441e92df344a8cf"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:10:57.650382",
+    "_id": "6aeb75314441e92df344a8d0"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:04.001101",
+    "_id": "6aeb75384441e92df344a8d1"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:10.662727",
+    "_id": "6aeb753e4441e92df344a8d2"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:11.538161",
+    "_id": "6aeb753f4441e92df344a8d3"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:12.408216",
+    "_id": "6aeb75404441e92df344a8d4"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:42.815578",
+    "_id": "6aeb755e4441e92df344a8d5"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:11:46.376343",
+    "_id": "6aeb75624441e92df344a8d6"
+  },
+  {
+    "event": "login",
+    "userId": "user_prachi_001",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:12:35.739605",
+    "_id": "6aeb75934441e92df344a8d7"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:14:38.477539",
+    "_id": "6aeb760e4441e92df344a8d8"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:14:44.471439",
+    "_id": "6aeb76144441e92df344a8d9"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:14:52.922975",
+    "_id": "6aeb761c4441e92df344a8da"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:14:58.050189",
+    "_id": "6aeb76224441e92df344a8db"
+  },
+  {
+    "event": "login",
+    "userId": "user_prachi_001",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:16:36.631348",
+    "_id": "6aeb76844441e92df344a8dc"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:26:39.926652",
+    "_id": "6aeb78df4441e92df344a8f0"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:26:49.203174",
+    "_id": "6aeb78e94441e92df344a8f1"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-04T18:26:50.703059",
+    "_id": "6aeb78ea4441e92df344a8f2"
+  },
+  {
+    "event": "failed_login",
+    "email": "prachi@example.com",
+    "timestamp": "2026-11-05T07:14:02.904616",
+    "_id": "6aec2cba18959d18862c0d35"
   }
 ]

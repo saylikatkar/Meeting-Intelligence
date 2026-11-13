@@ -54,6 +54,8 @@ class PipelineProcessor:
             }
             jobs_col.insert_one(job)
 
+        current_failure_stage = "processing"
+
         def update_job(stage: str, progress: int, status="processing", error=None):
             jobs_col.update_one(
                 {"meetingId": meeting_id},
@@ -67,13 +69,21 @@ class PipelineProcessor:
                     }
                 }
             )
+            meeting_updates = {"status": status.lower()}
+            if status.lower() == "processing":
+                meeting_updates.update({
+                    "failureStage": None,
+                    "failureReason": None,
+                    "failedAt": None,
+                })
             meetings_col.update_one(
                 {"_id": meeting_id},
-                {"$set": {"status": status.lower()}}
+                {"$set": meeting_updates}
             )
 
         try:
             # 1. AUDIO EXTRACTION
+            current_failure_stage = "audio_extraction"
             update_job("EXTRACTING_AUDIO", 20)
             file_path = meeting.get("filePath")
             audio_path = file_path
@@ -84,10 +94,11 @@ class PipelineProcessor:
                     try:
                         audio_path = FFmpegService.extract_audio(file_path)
                     except Exception as e:
-                        logger.warning(f"FFmpeg extraction failed ({e}), continuing with original path.")
-                        audio_path = file_path
+                        logger.exception("Audio extraction failed for meeting %s", meeting_id)
+                        raise RuntimeError(f"Audio extraction failed: {e}") from e
 
             # 2. WHISPER TRANSCRIPTION
+            current_failure_stage = "transcription"
             update_job("TRANSCRIBING", 45)
             transcription = WhisperService.transcribe(audio_path if audio_path and os.path.exists(audio_path) else "")
             raw_segments = transcription.get("segments", [])
@@ -95,6 +106,7 @@ class PipelineProcessor:
             duration = transcription.get("duration", 0.0) or meeting.get("duration", 2700)
 
             # 3. CONVERSATION TURN DETECTION (Option B)
+            current_failure_stage = "speaker_detection"
             update_job("ANALYZING_CONVERSATION", 65)
             turn_analysis = ConversationAnalysisService.detect_speakers(raw_segments)
             detected_speakers = turn_analysis.get("speakers", [])
@@ -151,6 +163,7 @@ class PipelineProcessor:
             full_transcript_text = "\n".join(formatted_transcript_lines)
 
             # 4. MEETING INTELLIGENCE ANALYSIS
+            current_failure_stage = "analysis"
             update_job("GENERATING_ANALYSIS", 85)
             analysis_data = MeetingAnalysisService.analyze_meeting(
                 meeting_title=meeting.get("title", "Project Meeting"),
@@ -202,7 +215,10 @@ class PipelineProcessor:
                         "duration": duration,
                         "language": language,
                         "speakerCount": len(detected_speakers),
-                        "completedAt": datetime.utcnow().isoformat()
+                        "completedAt": datetime.utcnow().isoformat(),
+                        "failureStage": None,
+                        "failureReason": None,
+                        "failedAt": None
                     }
                 }
             )
@@ -235,4 +251,15 @@ class PipelineProcessor:
 
         except Exception as e:
             logger.exception(f"Pipeline execution error for meeting {meeting_id}: {e}")
-            update_job("FAILED", 100, status="failed", error=str(e))
+            failed_at = datetime.utcnow().isoformat()
+            failure_reason = str(e) or "An unknown processing error occurred."
+            update_job("FAILED", 100, status="failed", error=failure_reason)
+            meetings_col.update_one(
+                {"_id": meeting_id},
+                {"$set": {
+                    "status": "failed",
+                    "failureStage": current_failure_stage,
+                    "failureReason": failure_reason,
+                    "failedAt": failed_at,
+                }},
+            )

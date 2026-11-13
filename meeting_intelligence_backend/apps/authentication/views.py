@@ -69,6 +69,9 @@ class RegisterView(APIView):
             "totalMinutesProcessed": 0,
             "createdAt": datetime.utcnow().isoformat(),
             "lastLoginAt": datetime.utcnow().isoformat(),
+            "plan": "free",
+            "subscriptionStatus": "free",
+            "razorpaySubscriptionId": None,
         }
 
         users_col.insert_one(user_doc)
@@ -183,6 +186,9 @@ class LoginView(APIView):
                 "totalMinutesProcessed": user.get(
                     "totalMinutesProcessed", 0
                 ),
+                "plan": user.get("plan", "free"),
+                "subscriptionStatus": user.get("subscriptionStatus", "free"),
+                "razorpaySubscriptionId": user.get("razorpaySubscriptionId"),
             },
             "tokens": tokens,
         })
@@ -265,6 +271,9 @@ class CurrentUserView(APIView):
             ),
             "createdAt": user_doc.get("createdAt"),
             "lastLoginAt": user_doc.get("lastLoginAt"),
+            "plan": user.get("plan", "free"),
+            "subscriptionStatus": user.get("subscriptionStatus", "free"),
+            "razorpaySubscriptionId": user.get("razorpaySubscriptionId"),
         })
 
 
