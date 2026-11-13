@@ -1,5 +1,7 @@
 .env
 venv/
+.venv/
+meeting_intelligence_backend/.venv/
 __pycache__/
 *.py[cod]
 media/
