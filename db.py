@@ -1,5 +1,7 @@
 
 import os
+import certifi
+
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -8,7 +10,18 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB = os.getenv("MONGODB_DB", "meeting_intelligence")
 
-client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
+if not MONGODB_URI:
+    raise ValueError("MONGODB_URI is missing from the .env file.")
+
+client = MongoClient(
+    MONGODB_URI,
+    tls=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=15000,
+    connectTimeoutMS=20000,
+    socketTimeoutMS=20000
+)
+
 db = client[MONGODB_DB]
 
 if __name__ == "__main__":
