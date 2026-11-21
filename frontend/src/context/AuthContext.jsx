@@ -4,18 +4,13 @@ import api from "../services/api";
 
 const AuthContext = createContext(null);
 
-// Use the real Django backend when VITE_API_URL is configured.
 const USE_MOCK = !import.meta.env.VITE_API_URL;
-console.log("API URL:", import.meta.env.VITE_API_URL);
-console.log("Using mock login:", USE_MOCK);
 
-// Admin account configuration from .env
 export const roleAccounts = {
   admin: {
     name: import.meta.env.VITE_ADMIN_NAME || "Admin",
     email: import.meta.env.VITE_ADMIN_EMAIL,
     password: import.meta.env.VITE_ADMIN_PASSWORD,
-    secretKey: import.meta.env.VITE_ADMIN_SECRET_KEY,
   },
 };
 
@@ -23,7 +18,6 @@ function sameEmail(a, b) {
   return (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
 }
 
-// Check whether the saved user is authorized for the requested role.
 export function isAuthorized(user, role) {
   if (!user || user.role !== role) return false;
 
@@ -42,8 +36,7 @@ function getSavedUser() {
   }
 }
 
-// Mock login used only when the backend URL is not configured.
-function mockLogin(email, password, role, profile, secretKey) {
+function mockLogin(email, password, role, profile) {
   const account = roleAccounts[role];
 
   if (!account) {
@@ -62,20 +55,17 @@ function mockLogin(email, password, role, profile, secretKey) {
     return user;
   }
 
-  if (!account.email || !account.password || !account.secretKey) {
-    const prefix = `VITE_${role.toUpperCase()}`;
-
+  if (!account.email || !account.password) {
     throw new Error(
-      `The ${role} account is not configured. Add ${prefix}_EMAIL, ${prefix}_PASSWORD and ${prefix}_SECRET_KEY to your .env file.`
+      `The ${role} account is not configured. Add VITE_${role.toUpperCase()}_EMAIL and VITE_${role.toUpperCase()}_PASSWORD to your .env file.`
     );
   }
 
   if (
     !sameEmail(email, account.email) ||
-    password !== account.password ||
-    secretKey !== account.secretKey
+    password !== account.password
   ) {
-    throw new Error("Invalid email, password or secret key.");
+    throw new Error("Invalid email or password.");
   }
 
   return {
@@ -88,37 +78,23 @@ function mockLogin(email, password, role, profile, secretKey) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getSavedUser);
 
-  // Login using either the mock system or the real Django backend.
-  async function login(email, password, role, profile, secretKey) {
+  async function login(email, password, role, profile) {
     let loggedInUser;
 
     if (USE_MOCK) {
-      loggedInUser = mockLogin(
-        email,
-        password,
-        role,
-        profile,
-        secretKey
-      );
+      loggedInUser = mockLogin(email, password, role, profile);
 
       localStorage.setItem("access", "mock-token");
     } else {
-      const payload =
-        role === "admin"
-          ? { email, password, secret_key: secretKey }
-          : { email, password };
+      const { data } = await api.post("/auth/login/", {
+        email,
+        password,
+      });
 
-      const { data } = await api.post("/auth/login/", payload);
-
-      // Ensure the backend returned user details.
       if (!data?.user) {
-        throw new Error(
-          "Login response did not contain user details."
-        );
+        throw new Error("Login response did not contain user details.");
       }
 
-      // Django returns tokens inside data.tokens.
-      // The fallback also supports APIs returning top-level tokens.
       const tokens = data.tokens || data;
 
       if (!tokens.access || !tokens.refresh) {
@@ -127,7 +103,6 @@ export function AuthProvider({ children }) {
         );
       }
 
-      // Check the account role before saving the session.
       if (data.user.role !== role) {
         throw new Error(
           `This account has the role "${data.user.role}". Please select the matching role.`
@@ -137,7 +112,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("access", tokens.access);
       localStorage.setItem("refresh", tokens.refresh);
 
-      // Keep the user's existing backend details.
       loggedInUser = {
         ...data.user,
         name: data.user.name || data.user.email?.split("@")[0] || "User",
@@ -150,7 +124,6 @@ export function AuthProvider({ children }) {
     return loggedInUser;
   }
 
-  // Update the signed-in user's profile.
   function updateProfile(changes) {
     const savedUser = getSavedUser();
 
@@ -162,7 +135,6 @@ export function AuthProvider({ children }) {
     setUser(next);
   }
 
-  // Log out and clear the local session.
   function logout() {
     const refreshToken = localStorage.getItem("refresh");
 

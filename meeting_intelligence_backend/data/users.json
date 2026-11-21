@@ -27,5 +27,19 @@
     "totalMinutesProcessed": 384,
     "createdAt": "2026-09-15T08:00:00Z",
     "lastLoginAt": "2026-10-23T19:30:18.539764"
+  },
+  {
+    "_id": "meetingintel-admin-local",
+    "name": "Admin",
+    "email": "meetingintel@admin.com",
+    "passwordHash": "e11f3dbf85feeeffa2c113a1988e5d46ace4a4e3d9333bc7e04100eb49ca8159",
+    "role": "admin",
+    "status": "active",
+    "totalMeetings": 0,
+    "totalMinutesProcessed": 0,
+    "createdAt": "2026-11-18T06:28:55.165574",
+    "lastLoginAt": "2026-11-18T06:31:15.539253",
+    "plan": "free",
+    "subscriptionStatus": "free"
   }
 ]

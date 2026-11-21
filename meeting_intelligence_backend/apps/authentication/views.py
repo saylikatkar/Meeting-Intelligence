@@ -22,6 +22,7 @@ from .jwt_utils import (
 
 
 class RegisterView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -101,10 +102,12 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
         print("LOGIN VIEW REACHED")
+
         email = request.data.get("email", "").strip().lower()
         password = request.data.get("password", "")
 
@@ -117,7 +120,6 @@ class LoginView(APIView):
         users_col = get_collection("users")
         user = users_col.find_one({"email": email})
 
-        # Temporary diagnostics: never print the password or its hash.
         db = get_db()
         print(
             "LOGIN DEBUG - Database:",
@@ -131,6 +133,7 @@ class LoginView(APIView):
             if user
             else False
         )
+
         print("LOGIN DEBUG - Password matches:", password_matches)
 
         if not user or not password_matches:
@@ -195,6 +198,7 @@ class LoginView(APIView):
 
 
 class RefreshView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -236,10 +240,10 @@ class RefreshView(APIView):
 
 
 class LogoutView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # JWTs are stateless; the client clears its saved tokens.
         return Response({"message": "Successfully logged out"})
 
 
@@ -271,13 +275,14 @@ class CurrentUserView(APIView):
             ),
             "createdAt": user_doc.get("createdAt"),
             "lastLoginAt": user_doc.get("lastLoginAt"),
-            "plan": user.get("plan", "free"),
-            "subscriptionStatus": user.get("subscriptionStatus", "free"),
-            "razorpaySubscriptionId": user.get("razorpaySubscriptionId"),
+            "plan": user_doc.get("plan", "free"),
+            "subscriptionStatus": user_doc.get("subscriptionStatus", "free"),
+            "razorpaySubscriptionId": user_doc.get("razorpaySubscriptionId"),
         })
 
 
 class ForgotPasswordView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -285,7 +290,6 @@ class ForgotPasswordView(APIView):
         users_col = get_collection("users")
         users_col.find_one({"email": email})
 
-        # This endpoint currently does not send an actual reset link.
         return Response({
             "message": (
                 "If this email is registered, a password reset link "
@@ -295,6 +299,7 @@ class ForgotPasswordView(APIView):
 
 
 class ResetPasswordView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -341,7 +346,6 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get the authenticated user's MongoDB record.
         users_col = get_collection("users")
         user_id = str(request.user.id)
 
@@ -353,7 +357,6 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Verify the existing password using the same method as login.
         if not verify_password(
             current_password,
             user.get("passwordHash", ""),
@@ -384,7 +387,6 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Hash the new password and save it in MongoDB.
         new_password_hash = hash_password(new_password)
 
         result = users_col.update_one(

@@ -196,5 +196,18 @@
     "email": "prachi@example.com",
     "timestamp": "2026-11-05T07:14:02.904616",
     "_id": "6aec2cba18959d18862c0d35"
+  },
+  {
+    "event": "failed_login",
+    "email": "meetingintel@admin.com",
+    "timestamp": "2026-11-18T05:24:06.318805",
+    "_id": "6afd36760d9ce50b5b66fc1b"
+  },
+  {
+    "event": "login",
+    "userId": "meetingintel-admin-local",
+    "email": "meetingintel@admin.com",
+    "timestamp": "2026-11-18T06:31:15.544252",
+    "_id": "6afd463352fcd40c0887ea4a"
   }
 ]

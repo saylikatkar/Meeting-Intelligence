@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth, roleAccounts } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import Logo from "./Logo";
 
@@ -32,13 +32,11 @@ function LoginForm({ initialRole = "member" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [secretKey, setSecretKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function pickRole(r) {
     setRole(r);
-    setSecretKey("");
     setError("");
   }
 
@@ -46,35 +44,15 @@ function LoginForm({ initialRole = "member" }) {
     e.preventDefault();
     setError("");
 
-    console.log("LOGIN FORM SUBMITTED");
-
     if (!email.trim() || !password) {
       setError("Please enter your email and password.");
-      return;
-    }
-
-    if (role === "admin" && !secretKey.trim()) {
-      setError("Please enter the admin secret key.");
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("CALLING AUTH LOGIN", {
-        email: email.trim(),
-        role,
-        usingMock: !import.meta.env.VITE_API_URL,
-      });
-
-      // Authenticate through AuthContext and the Django API.
-      const user = await login(
-        email.trim(),
-        password,
-        role,
-        undefined,
-        secretKey
-      );
+      const user = await login(email.trim(), password, role);
 
       if (role !== "member") {
         const savedName = staffProfiles[role]?.name;
@@ -107,6 +85,7 @@ function LoginForm({ initialRole = "member" }) {
       setError(
         err.response?.data?.detail ||
           err.response?.data?.message ||
+          err.response?.data?.error ||
           err.message ||
           "Login failed. Try again."
       );
@@ -222,28 +201,6 @@ function LoginForm({ initialRole = "member" }) {
               </button>
             </div>
           </div>
-
-          {role === "admin" && (
-            <div>
-              <label
-                htmlFor="secret-key"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Secret key
-              </label>
-
-              <input
-                id="secret-key"
-                type="password"
-                placeholder="Enter the admin secret key"
-                value={secretKey}
-                onChange={(e) => setSecretKey(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-600"
-                autoComplete="off"
-                required
-              />
-            </div>
-          )}
 
           <button
             type="submit"
